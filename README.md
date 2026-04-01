@@ -318,3 +318,22 @@ Key assertions proving pagination correctness:
 - `noDuplicateIdsAcrossPages` — no event ID appears on more than one page
 - `noMissingIdsAcrossPages` — paginated set equals non-paginated set exactly
 - `paginationWorksWithVariousLimits` — tested with limits 1, 3, 7, 10, 17, and 34
+
+---
+
+## Development Process
+
+### Branching Strategy
+
+Each milestone gets its own feature branch off `main`, with one commit per logical unit of work. PRs are reviewed via [CodeRabbit](https://coderabbit.ai) before merging.
+
+| Branch pattern | Purpose | Merges to |
+|---|---|---|
+| `main` | Stable, passing builds only | — |
+| `milestone-N/description` | Feature work for a specific milestone | `main` via PR |
+
+**Milestones 1–4** (project setup, core API, tests, docs) landed in a single commit on `main` as the initial implementation. From Milestone 5 onward, each issue gets a dedicated commit on a feature branch with a PR for review.
+
+### CI
+
+GitHub Actions runs `./mvnw verify` on every push and PR. The workflow tests against Java 21 LTS. PRs must pass CI before merging.
