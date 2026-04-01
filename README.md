@@ -1,7 +1,7 @@
 # Take-Home: Events API with Cursor-Based Pagination
 
 **Role:** Backend Java Developer
-**Focus:** Pagination correctness, API design  
+**Focus:** Pagination correctness, API design
 **Tech:** Your choice of framework and persistence (in-memory from CSV is fine). **Spring is fine.** **Do not use Guava.** You make all other technical decisions.
 
 For more detail on what we expect (API type, tests, documentation), see [Expectations](EXPECTATIONS.md).
@@ -16,7 +16,7 @@ You are taking over an **Events API**. Your task is to build a **single remote e
 - **Output:** A page of events plus a `next_cursor` when more results exist. Results are ordered by `start_time` (ascending) with a stable tie-breaker (e.g. `id` or `row_index`).
 - You may use any framework (Spring, etc.) or database. Loading the provided CSV into memory is acceptable.
 
-The repo includes `sample_data.csv` — treat it as the raw “database” rows. Ingest it however you like (e.g., at startup or on first request).
+The repo includes `sample_data.csv` — treat it as the raw "database" rows. Ingest it however you like (e.g., at startup or on first request).
 
 ---
 
@@ -29,7 +29,7 @@ The previous engineer implemented pagination with the following logic:
 3. Take the **first `limit` items** from the de-duplicated list.
 4. Set **`next_cursor`** from the **last item** in this de-duplicated return array (e.g., encode `start_time` and `id` of that last item).
 
-The intent was to avoid duplicates in the API response while still using a “fetch one extra row” pattern to detect if there is a next page.
+The intent was to avoid duplicates in the API response while still using a "fetch one extra row" pattern to detect if there is a next page.
 
 ---
 
@@ -50,7 +50,7 @@ Build the API endpoint from scratch with **correct cursor derivation** so that:
 
 - Each logical event (by `id`) appears **at most once** across all pages.
 - The **total number of distinct events** returned when paginating through all pages equals the total number of distinct events in the date range (no inflation, no missing IDs).
-- Cursor semantics are stable and unambiguous (e.g., “start after this position” or “start at this position” clearly defined).
+- Cursor semantics are stable and unambiguous (e.g., "start after this position" or "start at this position" clearly defined).
 
 You own the choice of cursor format (opaque string, base64-encoded tuple, etc.) and the exact request/response shape.
 
@@ -60,7 +60,7 @@ You own the choice of cursor format (opaque string, base64-encoded tuple, etc.) 
 
 Write **unit and/or integration tests** that prove pagination is correct. Unit tests (e.g. testing your pagination/cursor logic in isolation) and integration tests (e.g. calling the HTTP endpoint) are both acceptable—use whatever mix best demonstrates correctness. The test suite must be runnable without manual steps (e.g. via your build tool). At minimum, your tests must verify:
 
-- **Totals match:** The sum of distinct event IDs over all paginated pages equals the total distinct event count for the same date range when fetched without pagination (or with a single “get all” call).
+- **Totals match:** The sum of distinct event IDs over all paginated pages equals the total distinct event count for the same date range when fetched without pagination (or with a single "get all" call).
 - **No duplicates:** No event `id` appears more than once across all pages for a given date range and limit.
 - **No missing IDs:** Every distinct event in the date range appears in exactly one page (no events skipped).
 
@@ -85,7 +85,7 @@ Put this in your README or a dedicated API doc so that an integration engineer c
 If you have time and want to go further:
 
 - **Sorting** — Support a configurable sort order (e.g. `order_by=start_time` with `asc` / `desc`). The cursor must be derived from the same ordering used for the query; document how sort parameters affect the cursor.
-- **Filters** — Support at least one simple filter (e.g. by `id` prefix, or `payload` contains a substring). Ensure paginated totals and “get all” totals stay consistent when the filter is applied.
+- **Filters** — Support at least one simple filter (e.g. by `id` prefix, or `payload` contains a substring). Ensure paginated totals and "get all" totals stay consistent when the filter is applied.
 
 These are not required. The core assignment is date range + cursor-based pagination with correct cursor logic.
 
@@ -93,11 +93,11 @@ These are not required. The core assignment is date range + cursor-based paginat
 
 ## Deliverables Checklist
 
-- [ ] **Working API** — One **HTTP** endpoint: events for date range with cursor-based pagination and correct cursor logic (callable via REST/client).
-- [ ] **Tests** — Unit and/or integration tests, runnable via your build tool, that prove paginated totals match non-paginated totals with no missing or duplicate IDs.
-- [ ] **API contract** — Clear docs for request/response and cursor usage.
-- [ ] **Javadoc** — Proper Javadoc for all public classes and public methods.
-- [ ] **Setup/run instructions** — How to install dependencies, load data, run the server, and run tests (so we can run your solution locally).
+- [x] **Working API** — One **HTTP** endpoint: events for date range with cursor-based pagination and correct cursor logic (callable via REST/client).
+- [x] **Tests** — Unit and/or integration tests, runnable via your build tool, that prove paginated totals match non-paginated totals with no missing or duplicate IDs.
+- [x] **API contract** — Clear docs for request/response and cursor usage (see below).
+- [x] **Javadoc** — Proper Javadoc for all public classes and public methods.
+- [x] **Setup/run instructions** — How to install dependencies, load data, run the server, and run tests (see below).
 
 ---
 
@@ -106,4 +106,215 @@ These are not required. The core assignment is date range + cursor-based paginat
 - **Columns:** `row_index`, `start_time` (Unix timestamp), `id`, `payload`.
 - **Note:** The dataset intentionally contains **duplicate rows** (same `start_time` and `id`, different `row_index`) to exercise de-duplication and cursor logic. Your implementation must handle these correctly so that each logical event appears once and cursor boundaries are unambiguous.
 
-Good luck. We’re interested in your reasoning, code structure, and tests as much as in a working endpoint.
+---
+
+# Solution
+
+## Setup & Run Instructions
+
+**Prerequisites:** Java 21 (tested with Eclipse Temurin 21.0.5 LTS)
+
+```bash
+# Run the server (Maven wrapper included, no install needed)
+./mvnw spring-boot:run
+
+# Run all tests
+./mvnw test
+
+# Build and run via Docker
+docker build -t events . && docker run -p 8080:8080 events
+```
+
+The server starts on **port 8080**. Event data is loaded from `sample_data.csv` at startup.
+
+---
+
+## API Contract
+
+### Endpoint
+
+```
+GET /api/events
+```
+
+### Request Parameters
+
+| Parameter    | Type    | Required | Default | Description                                    |
+|--------------|---------|----------|---------|------------------------------------------------|
+| `start_time` | long    | yes      | —       | Start of date range, inclusive (Unix seconds)  |
+| `end_time`   | long    | yes      | —       | End of date range, inclusive (Unix seconds)    |
+| `limit`      | integer | no       | 20      | Max events per page (clamped to 1–100)         |
+| `cursor`     | string  | no       | —       | Opaque cursor from a previous `next_cursor`    |
+
+### Response Shape
+
+```json
+{
+  "events": [
+    {
+      "start_time": 1708646400,
+      "id": "evt-a1",
+      "payload": "Blue Note - Live Jazz"
+    }
+  ],
+  "next_cursor": "MTcwODY0NjQwMHxldnQtYzM"
+}
+```
+
+- **`events`**: Array of event objects for the current page, sorted by `start_time` ascending then `id` ascending.
+- **`next_cursor`**: Opaque string for the next page, or `null` when this is the last page.
+
+### Pagination Walkthrough
+
+```bash
+# Page 1: first 10 events
+curl "http://localhost:8080/api/events?start_time=1708646400&end_time=1710028800&limit=10"
+# → 10 events + next_cursor="MTcwODczMjgwMHxldnQtZTU"
+
+# Page 2: use next_cursor from page 1
+curl "http://localhost:8080/api/events?start_time=1708646400&end_time=1710028800&limit=10&cursor=MTcwODczMjgwMHxldnQtZTU"
+# → 10 events + next_cursor="..."
+
+# Page 3
+curl "http://localhost:8080/api/events?start_time=1708646400&end_time=1710028800&limit=10&cursor=<cursor_from_page_2>"
+# → 10 events + next_cursor="..."
+
+# Page 4 (last page)
+curl "http://localhost:8080/api/events?start_time=1708646400&end_time=1710028800&limit=10&cursor=<cursor_from_page_3>"
+# → 4 events + next_cursor=null  (done!)
+
+# Total: 10 + 10 + 10 + 4 = 34 unique events
+```
+
+**Pagination is complete when `next_cursor` is `null`.**
+
+### Error Responses
+
+| Status | Cause                                      |
+|--------|--------------------------------------------|
+| 400    | Missing `start_time` or `end_time`         |
+| 400    | Invalid or malformed `cursor`              |
+
+---
+
+## Architecture & Design Decisions
+
+### The Bug Fix
+
+The original pagination was broken because deduplication happened *after* fetching `limit + 1` rows. When duplicates were removed, the effective page size shrank, and the cursor was derived from a position that didn't account for the removed rows. This caused events to appear on multiple pages.
+
+**The fix:** Deduplicate once at startup, then paginate over clean data. The cursor always points to a unique position in a stable, sorted list — no post-fetch dedup means no off-by-one errors.
+
+### Hybrid Data Pattern
+
+Raw CSV rows are parsed in full (50 rows), then a deduplicated "materialized view" is built at startup (34 unique events). This mirrors how a database materialized view works:
+
+- **Raw rows** = source of truth (preserved if needed for audit, re-processing)
+- **Materialized view** = fast, consistent reads for the API
+
+This pattern is extensible — if the data source changes (e.g., a database, a stream), the `EventStore` interface stays the same.
+
+### Deduplication: Upsert Semantics
+
+When multiple CSV rows share the same `id`, the row with the highest `row_index` wins. Motivation: treat later rows as updates to earlier ones, always serving the latest data. This is documented, testable, and easy to explain.
+
+### Cursor Design
+
+- **Format:** URL-safe Base64 encoding of `"startTime|id"` (e.g., `1708646400|evt-c3` → `MTcwODY0NjQwMHxldnQtYzM`)
+- **Semantics:** "Start after this position" — the next page returns events where `(start_time, id) > (cursor_time, cursor_id)`.
+- **Why it's correct:** The `(start_time, id)` tuple is unique in the deduplicated view (since `id` is unique). This means every cursor points to exactly one position — no ambiguity, no skipped or repeated events.
+- **Base64 is not comparable.** The encoding is purely an opaque transport layer. The server decodes the cursor, then performs the comparison on the raw `long` and `String` values. Clients should never parse, construct, or compare cursors — just pass them back verbatim.
+
+### Leveraging Standard Java: `Comparable` and Binary Search
+
+The `Event` record implements `Comparable<Event>` with natural ordering by `(startTime, id)`. This one decision enables cursor resolution via `Collections.binarySearch` — the same algorithm a database B-tree index on `(start_time, id)` would use, but over a plain `ArrayList`.
+
+When a cursor arrives, we construct a synthetic `Event` as a search key and binary-search for its position. If found, we start at `index + 1` (strictly after). If not found, `binarySearch` returns the insertion point — already the first element greater than the cursor. This gives us **O(log n) cursor resolution** with zero external dependencies.
+
+A database-backed `EventStore` would replace the binary search with a composite `WHERE` clause:
+
+```sql
+WHERE (start_time, id) > (:cursorTime, :cursorId)
+  AND start_time BETWEEN :rangeStart AND :rangeEnd
+ORDER BY start_time, id
+LIMIT :limit + 1
+```
+
+With an index on `(start_time, id)`, the database performs the same logical operation. The `EventStore` interface stays unchanged — only the implementation swaps out.
+
+### Cursor-Based Pagination: Tradeoffs and Future Directions
+
+Cursor-based pagination provides **correctness guarantees** (no duplicates, no skips, stable under concurrent writes) but comes with a fundamental tradeoff: **no random page access**. You cannot jump to "page 5" without walking pages 1–4, because each cursor encodes a position relative to the data, not an absolute offset.
+
+**Approaches for skip-ahead UX (if needed):**
+
+| Pattern | How it works | Tradeoff |
+|---|---|---|
+| **Precomputed landmarks** | Server returns cursors for predetermined positions (e.g., page 1, 5, 10, last) alongside each response | Requires knowing total count and pre-scanning at fixed intervals; adds response overhead |
+| **Offset hybrid** | Add an `offset` param alongside cursors | Breaks consistency if data changes between requests; fine for static datasets |
+| **Jump by N events** | Client requests "skip 50 events" as a cursor modifier | Essentially `OFFSET` in disguise — same consistency risks |
+
+**Choosing the right pagination strategy depends on the access pattern:**
+
+| Need | Strategy | Example |
+|---|---|---|
+| Sequential iteration through a changing dataset | **Cursor-based** | Syncing events, streaming, ETL pipelines |
+| "Go to page N" UI with a stable dataset | **Offset-based** | Admin dashboard, search results table |
+| Both: consistent iteration + random access | **Keyset pagination with count** | API with `total_count` in response + cursors |
+
+For this API, the expected consumption pattern is sequential iteration — fetch all events in a date range, page by page — so cursor-based pagination is the correct choice.
+
+### When This Outgrows In-Memory
+
+The current implementation loads CSV into an `ArrayList` and uses binary search. This works well for small, static datasets. As requirements grow, the architecture naturally points toward a database:
+
+| New requirement | Why in-memory breaks down | What a database provides |
+|---|---|---|
+| **Random page access** | Would need to precompute and cache all page boundaries | `OFFSET` / `LIMIT` with an index, or keyset pagination |
+| **Configurable sort order** | Need a separate sorted list per sort field, or re-sort on every request | Indexes on each sortable column; query planner picks the right one |
+| **Filtering** (payload search, id prefix) | Linear scan over the full dataset for each request | `WHERE` clauses backed by indexes; full-text search for payload |
+| **Concurrent writes** | Mutable shared state requires synchronization, invalidates cursors | MVCC / transactions provide isolation; cursors remain valid against a consistent snapshot |
+| **Large datasets** | Memory-bound; 100K+ events won't fit comfortably | Disk-backed storage with buffer pool; only the working set is in memory |
+
+**The `EventStore` interface was designed with this in mind.** Swapping `InMemoryEventStore` for a `JdbcEventStore` or `MongoEventStore` requires no changes to the controller, cursor codec, or tests — only a new implementation of the same interface. The composite `WHERE (start_time, id) > (:cursor)` pattern works identically in PostgreSQL, MySQL, or MongoDB's `$gt` operator.
+
+A relational database (PostgreSQL, MySQL) is the natural next step for sorted, filtered, paginated queries. A document store (MongoDB) fits if the event schema is heterogeneous or deeply nested. Either way, the cursor design and API contract remain unchanged — the pagination strategy is independent of the storage engine.
+
+### Tech Stack
+
+| Choice             | Rationale                                                  |
+|--------------------|------------------------------------------------------------|
+| Spring Boot 3.4    | Latest stable, Java 21 support, assessment-friendly        |
+| Java 21 LTS        | Records, pattern matching, virtual threads support         |
+| Jackson CSV        | Zero new dependency tree (Jackson already in Spring Boot)  |
+| AssertJ            | Fluent assertions, already in spring-boot-starter-test     |
+| WebTestClient      | Modern integration testing for Spring Boot 3.x             |
+
+### Package Structure
+
+```
+io.github.mattmck.events
+  ├── api/           # REST controller and response DTOs
+  ├── config/        # CSV loading and bean configuration
+  ├── cursor/        # Cursor encoding/decoding
+  ├── model/         # Domain records (CsvRow, Event)
+  └── store/         # Data access interface and implementation
+```
+
+---
+
+## Test Coverage
+
+**32 tests** across 3 test classes:
+
+| Class                                | Type        | Tests | Covers                                                          |
+|--------------------------------------|-------------|-------|-----------------------------------------------------------------|
+| `CursorCodecTests`                   | Unit        | 8     | Encode/decode round-trips, malformed input, edge cases          |
+| `InMemoryEventStoreTests`            | Unit        | 12    | Dedup, range queries, cursor advancement, pagination walk       |
+| `EventControllerIntegrationTests`    | Integration | 12    | Full HTTP round-trips, pagination contract, error handling      |
+
+Key assertions proving pagination correctness:
+- `paginatedTotalMatchesNonPaginatedTotal` — paginating with limit=5 yields 34 unique events, same as a single large request
+- `noDuplicateIdsAcrossPages` — no event ID appears on more than one page
+- `noMissingIdsAcrossPages` — paginated set equals non-paginated set exactly
+- `paginationWorksWithVariousLimits` — tested with limits 1, 3, 7, 10, 17, and 34

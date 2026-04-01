@@ -1,0 +1,51 @@
+row_index,start_time,id,payload
+1,1708646400,evt-a1,Jazz Night at Blue Note
+2,1708646400,evt-b2,Tech Meetup: APIs in Practice
+3,1708646400,evt-a1,Blue Note - Live Jazz
+4,1708646400,evt-c3,Yoga in the Park
+5,1708732800,evt-d4,Comedy Night at the Cellar
+6,1708732800,evt-e5,Startup Pitch Competition
+7,1708732800,evt-d4,Stand-up at Comedy Cellar
+8,1708819200,evt-f6,Rock Concert - Madison Square Garden
+9,1708819200,evt-g7,Cooking Workshop: Pasta from Scratch
+10,1708819200,evt-f6,MSG Rock Night
+11,1708905600,evt-h8,Board Game Night
+12,1708905600,evt-i9,Photography Walk - Brooklyn Bridge
+13,1708905600,evt-h8,Games & Beer at The Uncommons
+14,1708992000,evt-j10,Karaoke at Sing Sing
+15,1708992000,evt-k11,Poetry Slam Downtown
+16,1708992000,evt-j10,Sing Sing Karaoke Night
+17,1709078400,evt-l12,Trivia Night - The Gaf
+18,1709078400,evt-m13,Improv Show at UCB
+19,1709078400,evt-l12,Pub Quiz at The Gaf
+20,1709164800,evt-n14,Brunch & Drag Show
+21,1709164800,evt-o15,Mountain Biking Trip - Bear Mountain
+22,1709164800,evt-n14,Drag Brunch at Lips
+23,1709251200,evt-p16,Film Screening: Classic Sci-Fi
+24,1709251200,evt-q17,Wine Tasting - Brooklyn Winery
+25,1709251200,evt-p16,Sci-Fi Marathon at Nitehawk
+26,1709337600,evt-r18,Podcast Live: Dev Chats
+27,1709337600,evt-s19,Salsa Night at SOB's
+28,1709337600,evt-r18,Dev Chats Live Recording
+29,1709424000,evt-t20,Indie Band Showcase
+30,1709424000,evt-u21,Pottery Class for Beginners
+31,1709424000,evt-t20,Bowery Ballroom - Indie Night
+32,1709510400,evt-v22,Hackathon: 24hr Build
+33,1709510400,evt-w23,Farmers Market Tour & Cook
+34,1709510400,evt-v22,Weekend Hackathon
+35,1709596800,evt-x24,Rooftop Cinema: Rom-Com Night
+36,1709596800,evt-y25,Morning Run Club - Central Park
+37,1709596800,evt-x24,Outdoor Movie - Rooftop Films
+38,1709683200,evt-z26,Book Club: Sci-Fi Month
+39,1709683200,evt-a27,Silent Disco at Brooklyn Mirage
+40,1709683200,evt-z26,Sci-Fi Book Club Meetup
+41,1709769600,evt-b28,Chess Tournament - Open Section
+42,1709769600,evt-c29,Food Truck Festival
+43,1709769600,evt-b28,Chess Open at Marshall Club
+44,1709856000,evt-d30,Acoustic Night at Rockwood
+45,1709856000,evt-e31,Volunteer: Park Cleanup
+46,1709856000,evt-d30,Rockwood Music Hall - Acoustic
+47,1709942400,evt-f32,VR Gaming Pop-up
+48,1709942400,evt-g33,Networking for Designers
+49,1709942400,evt-f32,VR Arcade Experience
+50,1710028800,evt-h34,Sunday Jazz Brunch
