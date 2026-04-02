@@ -112,20 +112,44 @@ These are not required. The core assignment is date range + cursor-based paginat
 
 ## Setup & Run Instructions
 
-**Prerequisites:** Java 21 (tested with Eclipse Temurin 21.0.5 LTS)
+**Prerequisites:** Java 21 (tested with Eclipse Temurin 21.0.5 LTS). No Maven install needed — the wrapper (`./mvnw`) downloads it automatically.
+
+### Maven Targets
 
 ```bash
-# Run the server (Maven wrapper included, no install needed)
+# Run the server
 ./mvnw spring-boot:run
 
-# Run all tests
+# Run all tests (unit + integration)
 ./mvnw test
 
-# Build and run via Docker
+# Full build lifecycle: compile, test, package
+./mvnw verify
+
+# Generate Javadoc HTML (output: target/reports/apidocs/index.html)
+./mvnw javadoc:javadoc
+
+# Package as JAR (output: target/events-0.0.1-SNAPSHOT.jar)
+./mvnw package
+
+# Clean build artifacts
+./mvnw clean
+```
+
+### Docker
+
+```bash
 docker build -t events . && docker run -p 8080:8080 events
 ```
 
-The server starts on **port 8080**. Event data is loaded from `sample_data.csv` at startup.
+### What's Running Where
+
+| URL | What |
+|---|---|
+| http://localhost:8080/api/events?start_time=1708646400&end_time=1710028800 | Events endpoint |
+| http://localhost:8080/swagger-ui.html | Interactive API docs (Swagger UI) |
+| http://localhost:8080/v3/api-docs | OpenAPI 3.0 JSON spec |
+| `target/reports/apidocs/index.html` | Generated Javadoc (after `./mvnw javadoc:javadoc`) |
 
 ---
 
