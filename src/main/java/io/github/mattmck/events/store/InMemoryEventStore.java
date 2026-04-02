@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * In-memory implementation of {@link EventStore} backed by a pre-sorted list of
@@ -37,8 +38,8 @@ import java.util.List;
  *
  * <p><strong>Sort order support:</strong></p>
  *
- * <p>The store maintains the canonical ascending list and creates a reversed view on
- * demand for descending queries. Binary search and range filtering adapt to the
+ * <p>The store maintains the canonical ascending list and an eagerly materialized
+ * reversed list for descending queries. Binary search and range filtering adapt to the
  * requested comparator, so cursors remain correct regardless of direction — as long
  * as the cursor was derived from the same sort order.</p>
  *
@@ -86,7 +87,7 @@ public class InMemoryEventStore implements EventStore {
         var isDescending = sortOrder.equals(Event.START_TIME_DESC);
         var events = isDescending ? descendingEvents : ascendingEvents;
         var filterLower = (payloadContains != null && !payloadContains.isBlank())
-                ? payloadContains.toLowerCase()
+                ? payloadContains.toLowerCase(Locale.ROOT)
                 : null;
 
         var startIndex = findStartIndex(events, sortOrder, rangeStart, rangeEnd, afterCursor);
@@ -96,11 +97,16 @@ public class InMemoryEventStore implements EventStore {
             var event = events.get(i);
 
             if (!isInRange(event, rangeStart, rangeEnd)) {
+                if (isDescending ? event.startTime() > rangeEnd : event.startTime() < rangeStart) {
+                    // Cursor landed before the range boundary — skip until we reach the range
+                    continue;
+                }
+                // Past the far end of the range — no more matches possible
                 break;
             }
 
             if (filterLower != null
-                    && (event.payload() == null || !event.payload().toLowerCase().contains(filterLower))) {
+                    && (event.payload() == null || !event.payload().toLowerCase(Locale.ROOT).contains(filterLower))) {
                 continue;
             }
 

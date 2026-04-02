@@ -11,6 +11,11 @@ import java.util.List;
  *
  * <p>Implementations return events in the order specified by the caller. When no
  * explicit ordering is given, the default is {@link Event#START_TIME_ASC}.</p>
+ *
+ * <p><strong>Supported sort orders:</strong> Only {@link Event#START_TIME_ASC} and
+ * {@link Event#START_TIME_DESC} are supported. Passing a different comparator
+ * produces undefined results because implementations may rely on pre-sorted lists
+ * that match these specific orderings.</p>
  */
 public interface EventStore {
 

@@ -1,6 +1,7 @@
 package io.github.mattmck.events.model;
 
 import java.util.Comparator;
+import java.util.Locale;
 
 /**
  * A deduplicated event ready for API responses.
@@ -42,7 +43,7 @@ public record Event(long startTime, String id, String payload) implements Compar
         if (direction == null) {
             return START_TIME_ASC;
         }
-        return switch (direction.toLowerCase()) {
+        return switch (direction.toLowerCase(Locale.ROOT)) {
             case "asc" -> START_TIME_ASC;
             case "desc" -> START_TIME_DESC;
             default -> throw new IllegalArgumentException(
