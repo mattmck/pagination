@@ -72,7 +72,12 @@ public class EventController {
             description = """
                     Returns events whose start_time falls within [start_time, end_time] inclusive.
                     Results are paginated using an opaque cursor. Pass next_cursor from a previous
-                    response to fetch the next page. Pagination is complete when next_cursor is null.""",
+                    response to fetch the next page. Pagination is complete when next_cursor is null.
+
+                    Important: a cursor is only valid when reused with the same query parameters
+                    that produced it (start_time, end_time, direction, payload_contains). Changing
+                    any of these between pages alters the result stream and may cause the cursor
+                    to resume from an incorrect position.""",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Page of events",
                             content = @Content(schema = @Schema(implementation = EventPageResponse.class))),
@@ -90,7 +95,7 @@ public class EventController {
             @Parameter(description = "Max events per page (default 20, max 100)", example = "10")
             @RequestParam(value = "limit", required = false) Integer limit,
 
-            @Parameter(description = "Opaque cursor from a previous next_cursor")
+            @Parameter(description = "Opaque cursor from a previous next_cursor. Only valid with the same start_time, end_time, direction, and payload_contains that produced it.")
             @RequestParam(value = "cursor", required = false) String cursor,
 
             @Parameter(description = "Sort direction: asc (default) or desc", example = "asc")
