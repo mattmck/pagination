@@ -35,9 +35,9 @@ public record Event(long startTime, String id, String payload) implements Compar
     /**
      * Returns the appropriate comparator for the given direction.
      *
-     * @param direction {@code "asc"} or {@code "desc"} (case-insensitive)
+     * @param direction {@code "asc"}, {@code "desc"} (case-insensitive), or {@code null} (defaults to ascending)
      * @return the corresponding comparator
-     * @throws IllegalArgumentException if direction is not {@code "asc"} or {@code "desc"}
+     * @throws IllegalArgumentException if direction is non-null and not {@code "asc"} or {@code "desc"}
      */
     public static Comparator<Event> comparatorForDirection(String direction) {
         if (direction == null) {
