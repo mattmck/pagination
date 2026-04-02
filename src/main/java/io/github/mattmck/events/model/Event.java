@@ -39,6 +39,9 @@ public record Event(long startTime, String id, String payload) implements Compar
      * @throws IllegalArgumentException if direction is not {@code "asc"} or {@code "desc"}
      */
     public static Comparator<Event> comparatorForDirection(String direction) {
+        if (direction == null) {
+            return START_TIME_ASC;
+        }
         return switch (direction.toLowerCase()) {
             case "asc" -> START_TIME_ASC;
             case "desc" -> START_TIME_DESC;

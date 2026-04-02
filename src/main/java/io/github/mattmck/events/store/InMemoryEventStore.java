@@ -83,7 +83,7 @@ public class InMemoryEventStore implements EventStore {
             return List.of();
         }
 
-        var isDescending = sortOrder == Event.START_TIME_DESC;
+        var isDescending = sortOrder.equals(Event.START_TIME_DESC);
         var events = isDescending ? descendingEvents : ascendingEvents;
         var filterLower = (payloadContains != null && !payloadContains.isBlank())
                 ? payloadContains.toLowerCase()
@@ -99,7 +99,8 @@ public class InMemoryEventStore implements EventStore {
                 break;
             }
 
-            if (filterLower != null && !event.payload().toLowerCase().contains(filterLower)) {
+            if (filterLower != null
+                    && (event.payload() == null || !event.payload().toLowerCase().contains(filterLower))) {
                 continue;
             }
 
@@ -141,7 +142,7 @@ public class InMemoryEventStore implements EventStore {
         }
         // For ascending, start at the first event >= rangeStart
         // For descending, start at the first event <= rangeEnd (which is the beginning of the desc list in range)
-        var isDescending = sortOrder == Event.START_TIME_DESC;
+        var isDescending = sortOrder.equals(Event.START_TIME_DESC);
         if (isDescending) {
             return findFirstDescendingInRange(events, rangeEnd);
         }
@@ -159,17 +160,23 @@ public class InMemoryEventStore implements EventStore {
 
     /**
      * Binary search for the first event with {@code startTime <= target} in descending list.
-     * In descending order, the list goes from highest to lowest startTime.
-     * We need the first element where startTime <= rangeEnd.
+     *
+     * <p>In descending order, the list goes from highest to lowest startTime. We need the
+     * first index where {@code startTime <= rangeEnd}. This is equivalent to finding the
+     * leftmost position where the condition holds, which binary search resolves in O(log n).</p>
      */
     private int findFirstDescendingInRange(List<Event> events, long rangeEnd) {
-        // In descending list, find first event where startTime <= rangeEnd
-        for (var i = 0; i < events.size(); i++) {
-            if (events.get(i).startTime() <= rangeEnd) {
-                return i;
+        var low = 0;
+        var high = events.size();
+        while (low < high) {
+            var mid = low + (high - low) / 2;
+            if (events.get(mid).startTime() > rangeEnd) {
+                low = mid + 1;
+            } else {
+                high = mid;
             }
         }
-        return events.size();
+        return low;
     }
 
     /**
