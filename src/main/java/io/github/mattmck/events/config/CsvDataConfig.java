@@ -33,6 +33,11 @@ import static java.util.Comparator.comparingInt;
 @Configuration
 public class CsvDataConfig {
 
+    /** Creates a new configuration instance. */
+    public CsvDataConfig() {
+        // default constructor
+    }
+
     private static final Logger Log = LoggerFactory.getLogger(CsvDataConfig.class);
 
     /**

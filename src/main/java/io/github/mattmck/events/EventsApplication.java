@@ -12,6 +12,16 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class EventsApplication {
 
+    /** Creates a new application instance. */
+    public EventsApplication() {
+        // default constructor
+    }
+
+    /**
+     * Application entry point. Starts the Spring Boot embedded server.
+     *
+     * @param args command-line arguments
+     */
     public static void main(String[] args) {
         SpringApplication.run(EventsApplication.class, args);
     }

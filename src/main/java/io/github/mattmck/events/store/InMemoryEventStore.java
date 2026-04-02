@@ -7,7 +7,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * In-memory implementation of {@link EventStore} backed by a pre-sorted list of
@@ -21,7 +23,7 @@ import java.util.List;
  * how a database materialized view works: the raw rows are the source of truth, and this
  * store provides fast, consistent reads over the clean data.</p>
  *
- * <h3>How cursor lookup works</h3>
+ * <p><strong>How cursor lookup works:</strong></p>
  *
  * <p>{@link Event} implements {@link Comparable} with natural ordering by
  * {@code (startTime, id)}. This lets us use {@link java.util.Collections#binarySearch}
@@ -34,7 +36,14 @@ import java.util.List;
  * {@code binarySearch} returns the insertion point, which is already the first element
  * greater than the cursor. This gives us O(log n) cursor resolution.</p>
  *
- * <h3>Future: database-backed implementation</h3>
+ * <p><strong>Sort order support:</strong></p>
+ *
+ * <p>The store maintains the canonical ascending list and an eagerly materialized
+ * reversed list for descending queries. Binary search and range filtering adapt to the
+ * requested comparator, so cursors remain correct regardless of direction — as long
+ * as the cursor was derived from the same sort order.</p>
+ *
+ * <p><strong>Future: database-backed implementation:</strong></p>
  *
  * <p>A database-backed {@link EventStore} would replace the binary search with a SQL
  * query using a composite {@code WHERE} clause:</p>
@@ -51,33 +60,54 @@ public class InMemoryEventStore implements EventStore {
 
     private static final Logger Log = LoggerFactory.getLogger(InMemoryEventStore.class);
 
-    private final List<Event> sortedEvents;
+    private final List<Event> ascendingEvents;
+    private final List<Event> descendingEvents;
 
     /**
      * Creates a new store from a pre-sorted, deduplicated list of events.
      *
-     * @param sortedEvents events sorted by {@link Event#SORT_ORDER}; must not contain
+     * @param sortedEvents events sorted by {@link Event#START_TIME_ASC}; must not contain
      *                     duplicate IDs
      */
     public InMemoryEventStore(List<Event> sortedEvents) {
-        this.sortedEvents = List.copyOf(sortedEvents);
-        Log.info("Initialized InMemoryEventStore with {} events", this.sortedEvents.size());
+        this.ascendingEvents = List.copyOf(sortedEvents);
+        var reversed = new ArrayList<>(sortedEvents);
+        Collections.reverse(reversed);
+        this.descendingEvents = List.copyOf(reversed);
+        Log.info("Initialized InMemoryEventStore with {} events", this.ascendingEvents.size());
     }
 
     @Override
-    public List<Event> query(long rangeStart, long rangeEnd, int maxResults, Cursor afterCursor) {
+    public List<Event> query(long rangeStart, long rangeEnd, int maxResults, Cursor afterCursor,
+                             Comparator<Event> sortOrder, String payloadContains) {
         if (rangeStart > rangeEnd || maxResults <= 0) {
             return List.of();
         }
 
-        var startIndex = findStartIndex(rangeStart, afterCursor);
-        var results = new ArrayList<Event>(Math.min(maxResults, sortedEvents.size()));
+        var isDescending = sortOrder.equals(Event.START_TIME_DESC);
+        var events = isDescending ? descendingEvents : ascendingEvents;
+        var filterLower = (payloadContains != null && !payloadContains.isBlank())
+                ? payloadContains.toLowerCase(Locale.ROOT)
+                : null;
 
-        for (var i = startIndex; i < sortedEvents.size() && results.size() < maxResults; i++) {
-            var event = sortedEvents.get(i);
+        var startIndex = findStartIndex(events, sortOrder, rangeStart, rangeEnd, afterCursor);
+        var results = new ArrayList<Event>(Math.min(maxResults, events.size()));
 
-            if (event.startTime() > rangeEnd) {
+        for (var i = startIndex; i < events.size() && results.size() < maxResults; i++) {
+            var event = events.get(i);
+
+            if (!isInRange(event, rangeStart, rangeEnd)) {
+                if (isDescending ? event.startTime() > rangeEnd : event.startTime() < rangeStart) {
+                    // Cursor landed before the range boundary — skip until we reach the range
+                    continue;
+                }
+                // Past the far end of the range — no more matches possible
                 break;
+            }
+
+            if (filterLower != null
+                    && (event.payload() == null || !event.payload().toLowerCase(Locale.ROOT).contains(filterLower))) {
+                continue;
             }
 
             results.add(event);
@@ -92,48 +122,84 @@ public class InMemoryEventStore implements EventStore {
      * @return the event count
      */
     public int size() {
-        return sortedEvents.size();
+        return ascendingEvents.size();
+    }
+
+    /**
+     * Checks whether an event falls within the time range. For ascending order,
+     * we break when we exceed rangeEnd. For descending, we break when we go below
+     * rangeStart.
+     */
+    private boolean isInRange(Event event, long rangeStart, long rangeEnd) {
+        return event.startTime() >= rangeStart && event.startTime() <= rangeEnd;
     }
 
     /**
      * Finds the index of the first event to include in results, using binary search.
      *
      * <p>If a cursor is provided, finds the first event strictly after the cursor position
-     * in sort order. Otherwise, finds the first event at or after {@code rangeStart}.</p>
+     * in the given sort order. Otherwise, finds the first event at or after the range
+     * boundary appropriate for the sort direction.</p>
      */
-    private int findStartIndex(long rangeStart, Cursor afterCursor) {
+    private int findStartIndex(List<Event> events, Comparator<Event> sortOrder,
+                               long rangeStart, long rangeEnd, Cursor afterCursor) {
         if (afterCursor != null) {
-            return findFirstIndexAfter(afterCursor.startTime(), afterCursor.id());
+            return findFirstIndexAfter(events, sortOrder, afterCursor.startTime(), afterCursor.id());
         }
-        return findFirstIndexAtOrAfter(rangeStart);
+        // For ascending, start at the first event >= rangeStart
+        // For descending, start at the first event <= rangeEnd (which is the beginning of the desc list in range)
+        var isDescending = sortOrder.equals(Event.START_TIME_DESC);
+        if (isDescending) {
+            return findFirstDescendingInRange(events, rangeEnd);
+        }
+        return findFirstAscendingInRange(events, rangeStart);
     }
 
     /**
-     * Binary search for the first event with {@code startTime >= target}.
+     * Binary search for the first event with {@code startTime >= target} in ascending list.
      */
-    private int findFirstIndexAtOrAfter(long targetTime) {
+    private int findFirstAscendingInRange(List<Event> events, long targetTime) {
         var searchKey = new Event(targetTime, "", "");
-        var index = Collections.binarySearch(sortedEvents, searchKey);
-        // binarySearch returns (-(insertion point) - 1) when key is not found
+        var index = Collections.binarySearch(events, searchKey, Event.START_TIME_ASC);
         return index >= 0 ? index : -(index + 1);
     }
 
     /**
-     * Binary search for the first event strictly after {@code (targetTime, targetId)}
-     * in sort order.
+     * Binary search for the first event with {@code startTime <= target} in descending list.
+     *
+     * <p>In descending order, the list goes from highest to lowest startTime. We need the
+     * first index where {@code startTime <= rangeEnd}. This is equivalent to finding the
+     * leftmost position where the condition holds, which binary search resolves in O(log n).</p>
      */
-    private int findFirstIndexAfter(long targetTime, String targetId) {
-        // Search for an event matching the cursor position
+    private int findFirstDescendingInRange(List<Event> events, long rangeEnd) {
+        var low = 0;
+        var high = events.size();
+        while (low < high) {
+            var mid = low + (high - low) / 2;
+            if (events.get(mid).startTime() > rangeEnd) {
+                low = mid + 1;
+            } else {
+                high = mid;
+            }
+        }
+        return low;
+    }
+
+    /**
+     * Binary search for the first event strictly after {@code (targetTime, targetId)}
+     * in the given sort order.
+     */
+    private int findFirstIndexAfter(List<Event> events, Comparator<Event> sortOrder,
+                                    long targetTime, String targetId) {
         var searchKey = new Event(targetTime, targetId, "");
-        var index = Collections.binarySearch(sortedEvents, searchKey);
+        var index = Collections.binarySearch(events, searchKey, sortOrder);
 
         if (index >= 0) {
             // Exact match found — return the next position
             return index + 1;
         }
 
-        // Not found — insertion point is where the cursor would be, which is also
-        // the first element strictly greater than the cursor
+        // Not found — insertion point is the first element strictly greater in sort order
         return -(index + 1);
     }
 }
