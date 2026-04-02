@@ -222,6 +222,35 @@ curl "http://localhost:8080/api/events?start_time=1708646400&end_time=1710028800
 | 400    | Invalid or malformed `cursor`              |
 | 400    | Invalid `direction` (not `asc` or `desc`)  |
 
+### Postman Collection
+
+A ready-to-use Postman collection is included in the repo. Import it to explore every endpoint scenario without writing a single request by hand.
+
+```
+postman/
+  events-api.postman_collection.json    # 16 requests across 5 folders
+  local.postman_environment.json        # {{base_url}}, {{start_time}}, {{end_time}}, {{next_cursor}}
+```
+
+**Quick start:**
+
+1. Start the server: `./mvnw spring-boot:run`
+2. In Postman: **File → Import** → select both files from the `postman/` folder
+3. Select the **Events API — Local** environment (top-right dropdown)
+4. Run any request, or use the **Collection Runner** on the "Pagination Walk" folder to page through all 34 events automatically
+
+**What's included:**
+
+| Folder | Requests | What it tests |
+|--------|----------|---------------|
+| Happy Path | 3 | Default limit, single-page fetch, small pages |
+| Pagination Walk | 4 | Sequential page-through (auto-captures `next_cursor` between requests) |
+| Sorting | 2 | Ascending vs descending order |
+| Filtering | 3 | Payload substring, no matches, combined filter + sort |
+| Edge Cases & Errors | 6 | Empty range, limit=1, missing params (400), invalid cursor (400), invalid direction (400) |
+
+Each request in the Pagination Walk and Edge Cases folders includes **test scripts** that validate status codes, array sizes, and cursor presence — so the Collection Runner gives you a green/red pass/fail summary.
+
 ### Interactive API Docs
 
 When the server is running, Swagger UI is available at:
