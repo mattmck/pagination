@@ -4,6 +4,12 @@ import io.github.mattmck.events.cursor.Cursor;
 import io.github.mattmck.events.cursor.CursorCodec;
 import io.github.mattmck.events.model.Event;
 import io.github.mattmck.events.store.EventStore;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +32,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api")
+@Tag(name = "Events", description = "Cursor-based paginated events API")
 public class EventController {
 
     private static final Logger Log = LoggerFactory.getLogger(EventController.class);
@@ -52,21 +59,44 @@ public class EventController {
      * stable tie-breaker. The sort direction defaults to ascending but can be
      * overridden with the {@code direction} parameter.</p>
      *
-     * @param startTime the beginning of the date range (inclusive, Unix seconds)
-     * @param endTime   the end of the date range (inclusive, Unix seconds)
-     * @param limit     maximum number of events per page (default 20, max 100)
-     * @param cursor    opaque cursor from a previous response's {@code next_cursor}
+     * @param startTime       the beginning of the date range (inclusive, Unix seconds)
+     * @param endTime         the end of the date range (inclusive, Unix seconds)
+     * @param limit           maximum number of events per page (default 20, max 100)
+     * @param cursor          opaque cursor from a previous response's {@code next_cursor}
      * @param direction       sort direction: {@code "asc"} (default) or {@code "desc"}
      * @param payloadContains optional substring filter on the event payload (case-insensitive)
      * @return a page of events with an optional cursor for the next page
      */
+    @Operation(
+            summary = "Query events by date range with cursor-based pagination",
+            description = """
+                    Returns events whose start_time falls within [start_time, end_time] inclusive.
+                    Results are paginated using an opaque cursor. Pass next_cursor from a previous
+                    response to fetch the next page. Pagination is complete when next_cursor is null.""",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Page of events",
+                            content = @Content(schema = @Schema(implementation = EventPageResponse.class))),
+                    @ApiResponse(responseCode = "400", description = "Invalid parameters or cursor")
+            }
+    )
     @GetMapping("/events")
     public ResponseEntity<?> getEvents(
+            @Parameter(description = "Start of date range (inclusive, Unix seconds)", required = true, example = "1708646400")
             @RequestParam("start_time") Long startTime,
+
+            @Parameter(description = "End of date range (inclusive, Unix seconds)", required = true, example = "1710028800")
             @RequestParam("end_time") Long endTime,
+
+            @Parameter(description = "Max events per page (default 20, max 100)", example = "10")
             @RequestParam(value = "limit", required = false) Integer limit,
+
+            @Parameter(description = "Opaque cursor from a previous next_cursor")
             @RequestParam(value = "cursor", required = false) String cursor,
+
+            @Parameter(description = "Sort direction: asc (default) or desc", example = "asc")
             @RequestParam(value = "direction", required = false, defaultValue = "asc") String direction,
+
+            @Parameter(description = "Case-insensitive substring filter on event payload", example = "Jazz")
             @RequestParam(value = "payload_contains", required = false) String payloadContains) {
 
         if (startTime == null || endTime == null) {

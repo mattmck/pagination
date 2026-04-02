@@ -139,12 +139,14 @@ GET /api/events
 
 ### Request Parameters
 
-| Parameter    | Type    | Required | Default | Description                                    |
-|--------------|---------|----------|---------|------------------------------------------------|
-| `start_time` | long    | yes      | —       | Start of date range, inclusive (Unix seconds)  |
-| `end_time`   | long    | yes      | —       | End of date range, inclusive (Unix seconds)    |
-| `limit`      | integer | no       | 20      | Max events per page (clamped to 1–100)         |
-| `cursor`     | string  | no       | —       | Opaque cursor from a previous `next_cursor`    |
+| Parameter          | Type    | Required | Default | Description                                              |
+|--------------------|---------|----------|---------|----------------------------------------------------------|
+| `start_time`       | long    | yes      | —       | Start of date range, inclusive (Unix seconds)             |
+| `end_time`         | long    | yes      | —       | End of date range, inclusive (Unix seconds)               |
+| `limit`            | integer | no       | 20      | Max events per page (clamped to 1–100)                   |
+| `cursor`           | string  | no       | —       | Opaque cursor from a previous `next_cursor`              |
+| `direction`        | string  | no       | `asc`   | Sort direction: `asc` or `desc`                          |
+| `payload_contains` | string  | no       | —       | Case-insensitive substring filter on event payload       |
 
 ### Response Shape
 
@@ -194,6 +196,32 @@ curl "http://localhost:8080/api/events?start_time=1708646400&end_time=1710028800
 |--------|--------------------------------------------|
 | 400    | Missing `start_time` or `end_time`         |
 | 400    | Invalid or malformed `cursor`              |
+| 400    | Invalid `direction` (not `asc` or `desc`)  |
+
+### Interactive API Docs
+
+When the server is running, Swagger UI is available at:
+
+- **Swagger UI:** [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
+- **OpenAPI spec:** [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
+
+### Sorting
+
+Results are sorted by `start_time` with `id` as a stable tie-breaker. Use `direction=desc` to reverse the order. **The cursor must be used with the same sort direction that produced it** — mixing directions with a cursor from a different direction produces undefined results.
+
+```bash
+# Descending: most recent events first
+curl "http://localhost:8080/api/events?start_time=1708646400&end_time=1710028800&limit=5&direction=desc"
+```
+
+### Filtering
+
+Use `payload_contains` to filter events by a substring in their payload (case-insensitive). The filter is applied before pagination, so paginated totals remain consistent with non-paginated totals when the same filter is used.
+
+```bash
+# Only events mentioning "Jazz"
+curl "http://localhost:8080/api/events?start_time=1708646400&end_time=1710028800&payload_contains=Jazz"
+```
 
 ---
 
@@ -305,13 +333,13 @@ io.github.mattmck.events
 
 ## Test Coverage
 
-**32 tests** across 3 test classes:
+**50 tests** across 3 test classes:
 
 | Class                                | Type        | Tests | Covers                                                          |
 |--------------------------------------|-------------|-------|-----------------------------------------------------------------|
 | `CursorCodecTests`                   | Unit        | 8     | Encode/decode round-trips, malformed input, edge cases          |
-| `InMemoryEventStoreTests`            | Unit        | 12    | Dedup, range queries, cursor advancement, pagination walk       |
-| `EventControllerIntegrationTests`    | Integration | 12    | Full HTTP round-trips, pagination contract, error handling      |
+| `InMemoryEventStoreTests`            | Unit        | 21    | Dedup, range queries, cursor advancement, sorting, filtering    |
+| `EventControllerIntegrationTests`    | Integration | 21    | Full HTTP round-trips, pagination, sorting, filtering, errors   |
 
 Key assertions proving pagination correctness:
 - `paginatedTotalMatchesNonPaginatedTotal` — paginating with limit=5 yields 34 unique events, same as a single large request
