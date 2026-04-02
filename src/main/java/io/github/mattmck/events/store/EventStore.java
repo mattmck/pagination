@@ -46,6 +46,30 @@ public interface EventStore {
      * @param sortOrder   comparator defining the result ordering
      * @return an unmodifiable list of matching events in the specified order
      */
+    default List<Event> query(long rangeStart, long rangeEnd, int maxResults, Cursor afterCursor,
+                      Comparator<Event> sortOrder) {
+        return query(rangeStart, rangeEnd, maxResults, afterCursor, sortOrder, null);
+    }
+
+    /**
+     * Returns up to {@code maxResults} events whose {@code startTime} falls within
+     * the inclusive range {@code [rangeStart, rangeEnd]}, in the order defined by
+     * {@code sortOrder}, optionally filtered by a payload substring.
+     *
+     * <p>If {@code payloadContains} is non-null and non-blank, only events whose payload
+     * contains the substring (case-insensitive) are included. The filter is applied before
+     * pagination, so paginated totals remain consistent with non-paginated totals when
+     * the same filter is used.</p>
+     *
+     * @param rangeStart      minimum startTime (inclusive), as a Unix timestamp in seconds
+     * @param rangeEnd        maximum startTime (inclusive), as a Unix timestamp in seconds
+     * @param maxResults      maximum number of events to return
+     * @param afterCursor     if non-null, skip all events at or before this cursor position
+     * @param sortOrder       comparator defining the result ordering
+     * @param payloadContains if non-null, filter events to those whose payload contains
+     *                        this substring (case-insensitive)
+     * @return an unmodifiable list of matching events in the specified order
+     */
     List<Event> query(long rangeStart, long rangeEnd, int maxResults, Cursor afterCursor,
-                      Comparator<Event> sortOrder);
+                      Comparator<Event> sortOrder, String payloadContains);
 }

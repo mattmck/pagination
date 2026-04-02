@@ -78,13 +78,16 @@ public class InMemoryEventStore implements EventStore {
 
     @Override
     public List<Event> query(long rangeStart, long rangeEnd, int maxResults, Cursor afterCursor,
-                             Comparator<Event> sortOrder) {
+                             Comparator<Event> sortOrder, String payloadContains) {
         if (rangeStart > rangeEnd || maxResults <= 0) {
             return List.of();
         }
 
         var isDescending = sortOrder == Event.START_TIME_DESC;
         var events = isDescending ? descendingEvents : ascendingEvents;
+        var filterLower = (payloadContains != null && !payloadContains.isBlank())
+                ? payloadContains.toLowerCase()
+                : null;
 
         var startIndex = findStartIndex(events, sortOrder, rangeStart, rangeEnd, afterCursor);
         var results = new ArrayList<Event>(Math.min(maxResults, events.size()));
@@ -94,6 +97,10 @@ public class InMemoryEventStore implements EventStore {
 
             if (!isInRange(event, rangeStart, rangeEnd)) {
                 break;
+            }
+
+            if (filterLower != null && !event.payload().toLowerCase().contains(filterLower)) {
+                continue;
             }
 
             results.add(event);

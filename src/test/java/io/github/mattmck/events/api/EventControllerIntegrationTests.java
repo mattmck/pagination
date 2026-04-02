@@ -230,6 +230,72 @@ class EventControllerIntegrationTests {
         }
     }
 
+    // --- Filter tests ---
+
+    @Test
+    @DisplayName("payload_contains filters events by substring")
+    void payloadContainsFiltersEvents() {
+        var response = webClient.get()
+                .uri("/api/events?start_time={s}&end_time={e}&limit=100&payload_contains=Jazz",
+                        DATA_START, DATA_END)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(EventPageResponse.class)
+                .returnResult()
+                .getResponseBody();
+
+        assertThat(response).isNotNull();
+        assertThat(response.events()).isNotEmpty();
+        assertThat(response.events())
+                .allSatisfy(event ->
+                        assertThat(event.payload().toLowerCase()).contains("jazz"));
+    }
+
+    @Test
+    @DisplayName("filtered paginated totals match filtered non-paginated totals")
+    void filteredPaginatedTotalsMatch() {
+        // Get all filtered events in one shot
+        var allAtOnce = webClient.get()
+                .uri("/api/events?start_time={s}&end_time={e}&limit=100&payload_contains=Night",
+                        DATA_START, DATA_END)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(EventPageResponse.class)
+                .returnResult()
+                .getResponseBody();
+
+        assertThat(allAtOnce).isNotNull();
+        var expectedCount = allAtOnce.events().size();
+
+        // Now paginate with the same filter
+        var paginatedIds = collectAllFilteredPaginatedIds(2, "Night");
+
+        assertThat(paginatedIds)
+                .hasSize(expectedCount)
+                .doesNotHaveDuplicates();
+    }
+
+    @Test
+    @DisplayName("filtered pagination has no duplicates across pages")
+    void filteredPaginationNoDuplicates() {
+        var ids = collectAllFilteredPaginatedIds(2, "Night");
+
+        assertThat(ids).doesNotHaveDuplicates();
+    }
+
+    @Test
+    @DisplayName("payload_contains with no matches returns empty")
+    void payloadContainsNoMatchesReturnsEmpty() {
+        webClient.get()
+                .uri("/api/events?start_time={s}&end_time={e}&payload_contains=zzz-no-match",
+                        DATA_START, DATA_END)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.events.length()").isEqualTo(0)
+                .jsonPath("$.next_cursor").isEqualTo(null);
+    }
+
     @Test
     @DisplayName("invalid direction returns 400")
     void invalidDirectionReturns400() {
@@ -246,6 +312,45 @@ class EventControllerIntegrationTests {
      */
     private List<String> collectAllPaginatedIds(int limit) {
         return collectAllPaginatedIds(limit, "asc");
+    }
+
+    /**
+     * Walks through all pages with a payload filter, collecting every event ID.
+     */
+    private List<String> collectAllFilteredPaginatedIds(int limit, String payloadContains) {
+        var allIds = new ArrayList<String>();
+        String cursor = null;
+        var maxPages = TOTAL_UNIQUE_EVENTS + 2;
+
+        for (var page = 0; page < maxPages; page++) {
+            var uri = cursor == null
+                    ? "/api/events?start_time=%d&end_time=%d&limit=%d&payload_contains=%s"
+                            .formatted(DATA_START, DATA_END, limit, payloadContains)
+                    : "/api/events?start_time=%d&end_time=%d&limit=%d&payload_contains=%s&cursor=%s"
+                            .formatted(DATA_START, DATA_END, limit, payloadContains, cursor);
+
+            var response = webClient.get()
+                    .uri(uri)
+                    .exchange()
+                    .expectStatus().isOk()
+                    .expectBody(EventPageResponse.class)
+                    .returnResult()
+                    .getResponseBody();
+
+            assertThat(response).isNotNull();
+            assertThat(response.events().size()).isLessThanOrEqualTo(limit);
+
+            for (var event : response.events()) {
+                allIds.add(event.id());
+            }
+
+            cursor = response.nextCursor();
+            if (cursor == null) {
+                break;
+            }
+        }
+
+        return allIds;
     }
 
     /**

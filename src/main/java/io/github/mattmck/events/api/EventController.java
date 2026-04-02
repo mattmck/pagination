@@ -56,7 +56,8 @@ public class EventController {
      * @param endTime   the end of the date range (inclusive, Unix seconds)
      * @param limit     maximum number of events per page (default 20, max 100)
      * @param cursor    opaque cursor from a previous response's {@code next_cursor}
-     * @param direction sort direction: {@code "asc"} (default) or {@code "desc"}
+     * @param direction       sort direction: {@code "asc"} (default) or {@code "desc"}
+     * @param payloadContains optional substring filter on the event payload (case-insensitive)
      * @return a page of events with an optional cursor for the next page
      */
     @GetMapping("/events")
@@ -65,7 +66,8 @@ public class EventController {
             @RequestParam("end_time") Long endTime,
             @RequestParam(value = "limit", required = false) Integer limit,
             @RequestParam(value = "cursor", required = false) String cursor,
-            @RequestParam(value = "direction", required = false, defaultValue = "asc") String direction) {
+            @RequestParam(value = "direction", required = false, defaultValue = "asc") String direction,
+            @RequestParam(value = "payload_contains", required = false) String payloadContains) {
 
         if (startTime == null || endTime == null) {
             return ResponseEntity.badRequest()
@@ -93,7 +95,7 @@ public class EventController {
             }
         }
 
-        var results = eventStore.query(startTime, endTime, effectiveLimit + 1, afterCursor, sortOrder);
+        var results = eventStore.query(startTime, endTime, effectiveLimit + 1, afterCursor, sortOrder, payloadContains);
 
         String nextCursor = null;
         var events = results;

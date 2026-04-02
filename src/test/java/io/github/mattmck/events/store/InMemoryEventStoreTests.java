@@ -262,4 +262,75 @@ class InMemoryEventStoreTests {
                 .hasSize(3)
                 .allSatisfy(event -> assertThat(event.startTime()).isEqualTo(T2));
     }
+
+    // --- Payload filter tests ---
+
+    @Test
+    @DisplayName("payload filter returns only matching events")
+    void payloadFilterReturnsMatches() {
+        var results = store.query(T1, T3, 100, null, Event.START_TIME_ASC, "alpha");
+
+        assertThat(results)
+                .hasSize(1)
+                .allSatisfy(event ->
+                        assertThat(event.payload().toLowerCase()).contains("alpha"));
+    }
+
+    @Test
+    @DisplayName("payload filter is case-insensitive")
+    void payloadFilterIsCaseInsensitive() {
+        var lower = store.query(T1, T3, 100, null, Event.START_TIME_ASC, "echo");
+        var upper = store.query(T1, T3, 100, null, Event.START_TIME_ASC, "ECHO");
+        var mixed = store.query(T1, T3, 100, null, Event.START_TIME_ASC, "Echo");
+
+        assertThat(lower).isEqualTo(upper).isEqualTo(mixed);
+    }
+
+    @Test
+    @DisplayName("payload filter with no matches returns empty list")
+    void payloadFilterNoMatchesReturnsEmpty() {
+        var results = store.query(T1, T3, 100, null, Event.START_TIME_ASC, "zzz-no-match");
+
+        assertThat(results).isEmpty();
+    }
+
+    @Test
+    @DisplayName("null payload filter returns all events (no filtering)")
+    void nullPayloadFilterReturnsAll() {
+        var results = store.query(T1, T3, 100, null, Event.START_TIME_ASC, null);
+
+        assertThat(results).hasSize(7);
+    }
+
+    @Test
+    @DisplayName("filtered pagination covers all matching events exactly once")
+    void filteredPaginationCoversAllMatchingEvents() {
+        // "o" appears in: Bravo, Foxtrot, Golf = 3 events
+        var limit = 1;
+        var allIds = new ArrayList<String>();
+        Cursor cursor = null;
+
+        while (true) {
+            var results = store.query(T1, T3, limit + 1, cursor, Event.START_TIME_ASC, "o");
+            var page = results.size() > limit
+                    ? results.subList(0, limit)
+                    : results;
+
+            allIds.addAll(page.stream().map(Event::id).toList());
+
+            if (results.size() <= limit) {
+                break;
+            }
+
+            var lastEvent = page.getLast();
+            cursor = new Cursor(lastEvent.startTime(), lastEvent.id());
+        }
+
+        assertThat(allIds).doesNotHaveDuplicates();
+        assertThat(allIds).allSatisfy(id -> {
+            var event = store.query(T1, T3, 100, null, Event.START_TIME_ASC, null)
+                    .stream().filter(e -> e.id().equals(id)).findFirst().orElseThrow();
+            assertThat(event.payload().toLowerCase()).contains("o");
+        });
+    }
 }
