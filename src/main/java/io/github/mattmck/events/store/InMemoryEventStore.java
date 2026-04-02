@@ -22,7 +22,7 @@ import java.util.List;
  * how a database materialized view works: the raw rows are the source of truth, and this
  * store provides fast, consistent reads over the clean data.</p>
  *
- * <h3>How cursor lookup works</h3>
+ * <p><strong>How cursor lookup works:</strong></p>
  *
  * <p>{@link Event} implements {@link Comparable} with natural ordering by
  * {@code (startTime, id)}. This lets us use {@link java.util.Collections#binarySearch}
@@ -35,14 +35,14 @@ import java.util.List;
  * {@code binarySearch} returns the insertion point, which is already the first element
  * greater than the cursor. This gives us O(log n) cursor resolution.</p>
  *
- * <h3>Sort order support</h3>
+ * <p><strong>Sort order support:</strong></p>
  *
  * <p>The store maintains the canonical ascending list and creates a reversed view on
  * demand for descending queries. Binary search and range filtering adapt to the
  * requested comparator, so cursors remain correct regardless of direction — as long
  * as the cursor was derived from the same sort order.</p>
  *
- * <h3>Future: database-backed implementation</h3>
+ * <p><strong>Future: database-backed implementation:</strong></p>
  *
  * <p>A database-backed {@link EventStore} would replace the binary search with a SQL
  * query using a composite {@code WHERE} clause:</p>
