@@ -186,4 +186,80 @@ class InMemoryEventStoreTests {
                 .containsExactlyInAnyOrder(
                         "evt-a", "evt-b", "evt-c", "evt-d", "evt-e", "evt-f", "evt-g");
     }
+
+    // --- Descending sort order tests ---
+
+    @Test
+    @DisplayName("descending query returns events in reverse order")
+    void descendingQueryReturnsReverseOrder() {
+        var results = store.query(T1, T3, 100, null, Event.START_TIME_DESC);
+
+        assertThat(results)
+                .hasSize(7)
+                .isSortedAccordingTo(Event.START_TIME_DESC);
+
+        // First event should be from T3, last from T1
+        assertThat(results.getFirst().startTime()).isEqualTo(T3);
+        assertThat(results.getLast().startTime()).isEqualTo(T1);
+    }
+
+    @Test
+    @DisplayName("descending pagination covers every event exactly once")
+    void descendingFullPaginationCoversAllEvents() {
+        var limit = 2;
+        var allIds = new ArrayList<String>();
+        Cursor cursor = null;
+
+        while (true) {
+            var results = store.query(T1, T3, limit + 1, cursor, Event.START_TIME_DESC);
+            var page = results.size() > limit
+                    ? results.subList(0, limit)
+                    : results;
+
+            allIds.addAll(page.stream().map(Event::id).toList());
+
+            if (results.size() <= limit) {
+                break;
+            }
+
+            var lastEvent = page.getLast();
+            cursor = new Cursor(lastEvent.startTime(), lastEvent.id());
+        }
+
+        assertThat(allIds)
+                .as("All 7 events should appear exactly once in descending pagination")
+                .hasSize(7)
+                .doesNotHaveDuplicates();
+
+        assertThat(new HashSet<>(allIds))
+                .containsExactlyInAnyOrder(
+                        "evt-a", "evt-b", "evt-c", "evt-d", "evt-e", "evt-f", "evt-g");
+    }
+
+    @Test
+    @DisplayName("descending cursor skips past the cursor position")
+    void descendingCursorSkipsPastPosition() {
+        var firstPage = store.query(T1, T3, 3, null, Event.START_TIME_DESC);
+        var lastEvent = firstPage.getLast();
+
+        var cursor = new Cursor(lastEvent.startTime(), lastEvent.id());
+        var secondPage = store.query(T1, T3, 3, cursor, Event.START_TIME_DESC);
+
+        assertThat(secondPage).isNotEmpty();
+        // All second-page events should come after the cursor in descending order
+        assertThat(secondPage)
+                .allSatisfy(event ->
+                        assertThat(Event.START_TIME_DESC.compare(event, lastEvent))
+                                .isGreaterThan(0));
+    }
+
+    @Test
+    @DisplayName("descending narrow range returns only matching events")
+    void descendingNarrowRangeReturnsSubset() {
+        var results = store.query(T2, T2, 100, null, Event.START_TIME_DESC);
+
+        assertThat(results)
+                .hasSize(3)
+                .allSatisfy(event -> assertThat(event.startTime()).isEqualTo(T2));
+    }
 }

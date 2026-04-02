@@ -18,9 +18,34 @@ import java.util.Comparator;
  */
 public record Event(long startTime, String id, String payload) implements Comparable<Event> {
 
-    /** Comparator defining the canonical sort order: startTime ascending, then id ascending. */
-    public static final Comparator<Event> SORT_ORDER =
+    /** Comparator: startTime ascending, then id ascending (default). */
+    public static final Comparator<Event> START_TIME_ASC =
             Comparator.comparingLong(Event::startTime).thenComparing(Event::id);
+
+    /** Comparator: startTime descending, then id descending. */
+    public static final Comparator<Event> START_TIME_DESC =
+            START_TIME_ASC.reversed();
+
+    /**
+     * Default sort order used for natural ordering ({@link #START_TIME_ASC}).
+     */
+    public static final Comparator<Event> SORT_ORDER = START_TIME_ASC;
+
+    /**
+     * Returns the appropriate comparator for the given direction.
+     *
+     * @param direction {@code "asc"} or {@code "desc"} (case-insensitive)
+     * @return the corresponding comparator
+     * @throws IllegalArgumentException if direction is not {@code "asc"} or {@code "desc"}
+     */
+    public static Comparator<Event> comparatorForDirection(String direction) {
+        return switch (direction.toLowerCase()) {
+            case "asc" -> START_TIME_ASC;
+            case "desc" -> START_TIME_DESC;
+            default -> throw new IllegalArgumentException(
+                    "Invalid direction: " + direction + ". Must be 'asc' or 'desc'.");
+        };
+    }
 
     @Override
     public int compareTo(Event other) {

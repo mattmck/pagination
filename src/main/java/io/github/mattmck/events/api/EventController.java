@@ -48,13 +48,15 @@ public class EventController {
      * Returns a page of events within the specified date range.
      *
      * <p>Both {@code start_time} and {@code end_time} are inclusive Unix timestamps
-     * in seconds. Results are ordered by {@code start_time} ascending with {@code id}
-     * as a stable tie-breaker.</p>
+     * in seconds. Results are ordered by {@code start_time} with {@code id} as a
+     * stable tie-breaker. The sort direction defaults to ascending but can be
+     * overridden with the {@code direction} parameter.</p>
      *
      * @param startTime the beginning of the date range (inclusive, Unix seconds)
      * @param endTime   the end of the date range (inclusive, Unix seconds)
      * @param limit     maximum number of events per page (default 20, max 100)
      * @param cursor    opaque cursor from a previous response's {@code next_cursor}
+     * @param direction sort direction: {@code "asc"} (default) or {@code "desc"}
      * @return a page of events with an optional cursor for the next page
      */
     @GetMapping("/events")
@@ -62,11 +64,20 @@ public class EventController {
             @RequestParam("start_time") Long startTime,
             @RequestParam("end_time") Long endTime,
             @RequestParam(value = "limit", required = false) Integer limit,
-            @RequestParam(value = "cursor", required = false) String cursor) {
+            @RequestParam(value = "cursor", required = false) String cursor,
+            @RequestParam(value = "direction", required = false, defaultValue = "asc") String direction) {
 
         if (startTime == null || endTime == null) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "start_time and end_time are required"));
+        }
+
+        java.util.Comparator<Event> sortOrder;
+        try {
+            sortOrder = Event.comparatorForDirection(direction);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", e.getMessage()));
         }
 
         var effectiveLimit = clampLimit(limit);
@@ -82,7 +93,7 @@ public class EventController {
             }
         }
 
-        var results = eventStore.query(startTime, endTime, effectiveLimit + 1, afterCursor);
+        var results = eventStore.query(startTime, endTime, effectiveLimit + 1, afterCursor, sortOrder);
 
         String nextCursor = null;
         var events = results;

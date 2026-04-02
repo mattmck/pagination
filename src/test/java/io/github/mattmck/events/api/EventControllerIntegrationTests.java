@@ -171,21 +171,98 @@ class EventControllerIntegrationTests {
         }
     }
 
+    // --- Sorting tests ---
+
+    @Test
+    @DisplayName("direction=desc returns events in descending order")
+    void descDirectionReturnsDescendingOrder() {
+        var response = webClient.get()
+                .uri("/api/events?start_time={s}&end_time={e}&limit=100&direction=desc",
+                        DATA_START, DATA_END)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(EventPageResponse.class)
+                .returnResult()
+                .getResponseBody();
+
+        assertThat(response).isNotNull();
+        assertThat(response.events()).hasSize(TOTAL_UNIQUE_EVENTS);
+
+        // Verify descending order: each event's startTime >= next event's startTime
+        var events = response.events();
+        for (var i = 0; i < events.size() - 1; i++) {
+            assertThat(events.get(i).startTime())
+                    .isGreaterThanOrEqualTo(events.get(i + 1).startTime());
+        }
+    }
+
+    @Test
+    @DisplayName("descending pagination produces same IDs as ascending")
+    void descendingPaginationMatchesAscending() {
+        var ascIds = collectAllPaginatedIds(5, "asc");
+        var descIds = collectAllPaginatedIds(5, "desc");
+
+        assertThat(new HashSet<>(descIds))
+                .as("Descending pagination should cover the same events as ascending")
+                .isEqualTo(new HashSet<>(ascIds));
+    }
+
+    @Test
+    @DisplayName("descending pagination has no duplicates across pages")
+    void descendingPaginationNoDuplicates() {
+        var ids = collectAllPaginatedIds(5, "desc");
+
+        assertThat(ids)
+                .hasSize(TOTAL_UNIQUE_EVENTS)
+                .doesNotHaveDuplicates();
+    }
+
+    @Test
+    @DisplayName("descending pagination works with various limit sizes")
+    void descendingPaginationWorksWithVariousLimits() {
+        for (var limit : List.of(1, 3, 7, 10, 17, 34)) {
+            var ids = collectAllPaginatedIds(limit, "desc");
+
+            assertThat(ids)
+                    .as("desc limit=%d should produce %d unique events", limit, TOTAL_UNIQUE_EVENTS)
+                    .hasSize(TOTAL_UNIQUE_EVENTS)
+                    .doesNotHaveDuplicates();
+        }
+    }
+
+    @Test
+    @DisplayName("invalid direction returns 400")
+    void invalidDirectionReturns400() {
+        webClient.get()
+                .uri("/api/events?start_time={s}&end_time={e}&direction=sideways",
+                        DATA_START, DATA_END)
+                .exchange()
+                .expectStatus().isBadRequest();
+    }
+
     /**
      * Walks through all pages using the given limit and collects every event ID
-     * encountered across all pages.
+     * encountered across all pages. Uses ascending sort direction.
      */
     private List<String> collectAllPaginatedIds(int limit) {
+        return collectAllPaginatedIds(limit, "asc");
+    }
+
+    /**
+     * Walks through all pages using the given limit and sort direction, collecting
+     * every event ID encountered across all pages.
+     */
+    private List<String> collectAllPaginatedIds(int limit, String direction) {
         var allIds = new ArrayList<String>();
         String cursor = null;
         var maxPages = (TOTAL_UNIQUE_EVENTS / limit) + 2; // safety cap
 
         for (var page = 0; page < maxPages; page++) {
             var uri = cursor == null
-                    ? "/api/events?start_time=%d&end_time=%d&limit=%d"
-                            .formatted(DATA_START, DATA_END, limit)
-                    : "/api/events?start_time=%d&end_time=%d&limit=%d&cursor=%s"
-                            .formatted(DATA_START, DATA_END, limit, cursor);
+                    ? "/api/events?start_time=%d&end_time=%d&limit=%d&direction=%s"
+                            .formatted(DATA_START, DATA_END, limit, direction)
+                    : "/api/events?start_time=%d&end_time=%d&limit=%d&direction=%s&cursor=%s"
+                            .formatted(DATA_START, DATA_END, limit, direction, cursor);
 
             var response = webClient.get()
                     .uri(uri)
