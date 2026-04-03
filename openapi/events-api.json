@@ -1,0 +1,180 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "Events API",
+        "description": "Cursor-based paginated events API for querying events within a date range.",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8080",
+            "description": "Local development server"
+        }
+    ],
+    "tags": [
+        {
+            "name": "Events",
+            "description": "Cursor-based paginated events API"
+        }
+    ],
+    "paths": {
+        "/api/events": {
+            "get": {
+                "tags": [
+                    "Events"
+                ],
+                "summary": "Query events by date range with cursor-based pagination",
+                "description": "Returns events whose start_time falls within [start_time, end_time] inclusive.\nResults are paginated using an opaque cursor. Pass next_cursor from a previous\nresponse to fetch the next page. Pagination is complete when next_cursor is null.\n\nImportant: a cursor is only valid when reused with the same query parameters\nthat produced it (start_time, end_time, direction, payload_contains). Changing\nany of these between pages alters the result stream and may cause the cursor\nto resume from an incorrect position.",
+                "operationId": "getEvents",
+                "parameters": [
+                    {
+                        "name": "start_time",
+                        "in": "query",
+                        "description": "Start of date range (inclusive, Unix seconds)",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        },
+                        "example": 1708646400
+                    },
+                    {
+                        "name": "end_time",
+                        "in": "query",
+                        "description": "End of date range (inclusive, Unix seconds)",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        },
+                        "example": 1710028800
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Max events per page (default 20, max 100)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        },
+                        "example": 10
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "description": "Opaque cursor from a previous next_cursor. Only valid with the same start_time, end_time, direction, and payload_contains that produced it.",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "description": "Sort direction: asc (default) or desc",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "asc",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        },
+                        "example": "asc"
+                    },
+                    {
+                        "name": "payload_contains",
+                        "in": "query",
+                        "description": "Case-insensitive substring filter on event payload",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "Jazz"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Page of events",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EventPageResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid parameters or cursor",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "description": "Human-readable error message"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "Event": {
+                "type": "object",
+                "properties": {
+                    "start_time": {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "Unix timestamp in seconds for the event start",
+                        "example": 1708646400
+                    },
+                    "id": {
+                        "type": "string",
+                        "description": "Unique logical event identifier",
+                        "example": "evt-a1"
+                    },
+                    "payload": {
+                        "type": "string",
+                        "description": "Human-readable event description",
+                        "example": "Blue Note - Live Jazz"
+                    }
+                },
+                "required": [
+                    "start_time",
+                    "id",
+                    "payload"
+                ]
+            },
+            "EventPageResponse": {
+                "type": "object",
+                "properties": {
+                    "events": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Event"
+                        },
+                        "description": "Array of events for the current page"
+                    },
+                    "next_cursor": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Opaque cursor for the next page, or null when this is the last page"
+                    }
+                },
+                "required": [
+                    "events",
+                    "next_cursor"
+                ]
+            }
+        }
+    }
+}

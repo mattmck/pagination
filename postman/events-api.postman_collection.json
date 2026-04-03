@@ -1,0 +1,585 @@
+{
+  "info": {
+    "_postman_id": "events-api-collection",
+    "name": "Events API — Cursor-Based Pagination",
+    "description": "Postman collection for the Events API take-home assessment.\n\nStart the server with `./mvnw spring-boot:run`, select the **Events API — Local** environment, then run any request.\n\nThe **Pagination Walk** folder auto-captures `next_cursor` from each response so you can click through pages sequentially.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Happy Path",
+      "item": [
+        {
+          "name": "All events (default limit)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/events?start_time={{start_time}}&end_time={{end_time}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "events"],
+              "query": [
+                { "key": "start_time", "value": "{{start_time}}" },
+                { "key": "end_time", "value": "{{end_time}}" }
+              ]
+            },
+            "description": "Returns up to 20 events (default limit) across the full sample data range. Expect 20 events and a non-null `next_cursor`."
+          }
+        },
+        {
+          "name": "All events (limit=100, single page)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/events?start_time={{start_time}}&end_time={{end_time}}&limit=100",
+              "host": ["{{base_url}}"],
+              "path": ["api", "events"],
+              "query": [
+                { "key": "start_time", "value": "{{start_time}}" },
+                { "key": "end_time", "value": "{{end_time}}" },
+                { "key": "limit", "value": "100" }
+              ]
+            },
+            "description": "With limit=100, all 34 unique events fit on one page. Expect `next_cursor` to be `null`."
+          }
+        },
+        {
+          "name": "Small page (limit=5)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.next_cursor) {",
+                  "    pm.environment.set('next_cursor', jsonData.next_cursor);",
+                  "}",
+                  "",
+                  "pm.test('Returns 5 events', function () {",
+                  "    pm.expect(jsonData.events.length).to.eql(5);",
+                  "});",
+                  "",
+                  "pm.test('Has next_cursor', function () {",
+                  "    pm.expect(jsonData.next_cursor).to.not.be.null;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/events?start_time={{start_time}}&end_time={{end_time}}&limit=5",
+              "host": ["{{base_url}}"],
+              "path": ["api", "events"],
+              "query": [
+                { "key": "start_time", "value": "{{start_time}}" },
+                { "key": "end_time", "value": "{{end_time}}" },
+                { "key": "limit", "value": "5" }
+              ]
+            },
+            "description": "Returns 5 events with a `next_cursor`. Also saves `next_cursor` to the environment variable for follow-up requests."
+          }
+        }
+      ],
+      "description": "Basic queries demonstrating the API works end-to-end."
+    },
+    {
+      "name": "Pagination Walk",
+      "item": [
+        {
+          "name": "Page 1 (start fresh, limit=10)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Returns 10 events', function () {",
+                  "    pm.expect(jsonData.events.length).to.eql(10);",
+                  "});",
+                  "",
+                  "pm.test('Has next_cursor', function () {",
+                  "    pm.expect(jsonData.next_cursor).to.not.be.null;",
+                  "});",
+                  "",
+                  "if (jsonData.next_cursor) {",
+                  "    pm.environment.set('next_cursor', jsonData.next_cursor);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/events?start_time={{start_time}}&end_time={{end_time}}&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "events"],
+              "query": [
+                { "key": "start_time", "value": "{{start_time}}" },
+                { "key": "end_time", "value": "{{end_time}}" },
+                { "key": "limit", "value": "10" }
+              ]
+            },
+            "description": "First page — 10 events. Saves `next_cursor` to the environment."
+          }
+        },
+        {
+          "name": "Page 2 (auto-cursor)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Returns 10 events', function () {",
+                  "    pm.expect(jsonData.events.length).to.eql(10);",
+                  "});",
+                  "",
+                  "pm.test('Has next_cursor', function () {",
+                  "    pm.expect(jsonData.next_cursor).to.not.be.null;",
+                  "});",
+                  "",
+                  "if (jsonData.next_cursor) {",
+                  "    pm.environment.set('next_cursor', jsonData.next_cursor);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/events?start_time={{start_time}}&end_time={{end_time}}&limit=10&cursor={{next_cursor}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "events"],
+              "query": [
+                { "key": "start_time", "value": "{{start_time}}" },
+                { "key": "end_time", "value": "{{end_time}}" },
+                { "key": "limit", "value": "10" },
+                { "key": "cursor", "value": "{{next_cursor}}" }
+              ]
+            },
+            "description": "Second page — uses `next_cursor` saved from Page 1."
+          }
+        },
+        {
+          "name": "Page 3 (auto-cursor)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Returns 10 events', function () {",
+                  "    pm.expect(jsonData.events.length).to.eql(10);",
+                  "});",
+                  "",
+                  "pm.test('Has next_cursor', function () {",
+                  "    pm.expect(jsonData.next_cursor).to.not.be.null;",
+                  "});",
+                  "",
+                  "if (jsonData.next_cursor) {",
+                  "    pm.environment.set('next_cursor', jsonData.next_cursor);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/events?start_time={{start_time}}&end_time={{end_time}}&limit=10&cursor={{next_cursor}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "events"],
+              "query": [
+                { "key": "start_time", "value": "{{start_time}}" },
+                { "key": "end_time", "value": "{{end_time}}" },
+                { "key": "limit", "value": "10" },
+                { "key": "cursor", "value": "{{next_cursor}}" }
+              ]
+            },
+            "description": "Third page — uses `next_cursor` saved from Page 2."
+          }
+        },
+        {
+          "name": "Page 4 — last page (auto-cursor)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Returns 4 events (remainder)', function () {",
+                  "    pm.expect(jsonData.events.length).to.eql(4);",
+                  "});",
+                  "",
+                  "pm.test('next_cursor is null (last page)', function () {",
+                  "    pm.expect(jsonData.next_cursor).to.be.null;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/events?start_time={{start_time}}&end_time={{end_time}}&limit=10&cursor={{next_cursor}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "events"],
+              "query": [
+                { "key": "start_time", "value": "{{start_time}}" },
+                { "key": "end_time", "value": "{{end_time}}" },
+                { "key": "limit", "value": "10" },
+                { "key": "cursor", "value": "{{next_cursor}}" }
+              ]
+            },
+            "description": "Last page — 4 remaining events, `next_cursor` is `null`. Total across all pages: 10 + 10 + 10 + 4 = 34 unique events."
+          }
+        }
+      ],
+      "description": "Walk through all 34 events in 4 pages (limit=10). Each request auto-saves `next_cursor` to the environment so the next request picks it up.\n\nRun these **sequentially** (Page 1 → 2 → 3 → 4) or use the Postman Collection Runner."
+    },
+    {
+      "name": "Sorting",
+      "item": [
+        {
+          "name": "Ascending (default)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/events?start_time={{start_time}}&end_time={{end_time}}&limit=5&direction=asc",
+              "host": ["{{base_url}}"],
+              "path": ["api", "events"],
+              "query": [
+                { "key": "start_time", "value": "{{start_time}}" },
+                { "key": "end_time", "value": "{{end_time}}" },
+                { "key": "limit", "value": "5" },
+                { "key": "direction", "value": "asc" }
+              ]
+            },
+            "description": "Earliest events first (default). Compare `start_time` values — they should increase."
+          }
+        },
+        {
+          "name": "Descending",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/events?start_time={{start_time}}&end_time={{end_time}}&limit=5&direction=desc",
+              "host": ["{{base_url}}"],
+              "path": ["api", "events"],
+              "query": [
+                { "key": "start_time", "value": "{{start_time}}" },
+                { "key": "end_time", "value": "{{end_time}}" },
+                { "key": "limit", "value": "5" },
+                { "key": "direction", "value": "desc" }
+              ]
+            },
+            "description": "Most recent events first. Compare `start_time` values — they should decrease."
+          }
+        }
+      ],
+      "description": "Verify ascending and descending sort order."
+    },
+    {
+      "name": "Filtering",
+      "item": [
+        {
+          "name": "Filter by payload substring",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/events?start_time={{start_time}}&end_time={{end_time}}&payload_contains=Jazz",
+              "host": ["{{base_url}}"],
+              "path": ["api", "events"],
+              "query": [
+                { "key": "start_time", "value": "{{start_time}}" },
+                { "key": "end_time", "value": "{{end_time}}" },
+                { "key": "payload_contains", "value": "Jazz" }
+              ]
+            },
+            "description": "Only events whose payload contains \"Jazz\" (case-insensitive)."
+          }
+        },
+        {
+          "name": "Filter with no matches",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/events?start_time={{start_time}}&end_time={{end_time}}&payload_contains=ZZZZZ",
+              "host": ["{{base_url}}"],
+              "path": ["api", "events"],
+              "query": [
+                { "key": "start_time", "value": "{{start_time}}" },
+                { "key": "end_time", "value": "{{end_time}}" },
+                { "key": "payload_contains", "value": "ZZZZZ" }
+              ]
+            },
+            "description": "No events match. Expect an empty `events` array and `next_cursor: null`."
+          }
+        },
+        {
+          "name": "Filter + descending sort",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/events?start_time={{start_time}}&end_time={{end_time}}&payload_contains=Jazz&direction=desc&limit=5",
+              "host": ["{{base_url}}"],
+              "path": ["api", "events"],
+              "query": [
+                { "key": "start_time", "value": "{{start_time}}" },
+                { "key": "end_time", "value": "{{end_time}}" },
+                { "key": "payload_contains", "value": "Jazz" },
+                { "key": "direction", "value": "desc" },
+                { "key": "limit", "value": "5" }
+              ]
+            },
+            "description": "Combined: filter by payload + descending sort."
+          }
+        }
+      ],
+      "description": "Payload substring filter (case-insensitive). Verify that filtered results are consistent."
+    },
+    {
+      "name": "Edge Cases & Errors",
+      "item": [
+        {
+          "name": "Empty date range",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Events array is empty', function () {",
+                  "    pm.expect(jsonData.events.length).to.eql(0);",
+                  "});",
+                  "",
+                  "pm.test('next_cursor is null', function () {",
+                  "    pm.expect(jsonData.next_cursor).to.be.null;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/events?start_time=9999999999&end_time=9999999999",
+              "host": ["{{base_url}}"],
+              "path": ["api", "events"],
+              "query": [
+                { "key": "start_time", "value": "9999999999" },
+                { "key": "end_time", "value": "9999999999" }
+              ]
+            },
+            "description": "A date range with no events. Expect empty array and null cursor."
+          }
+        },
+        {
+          "name": "Limit = 1 (smallest page)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Returns exactly 1 event', function () {",
+                  "    pm.expect(jsonData.events.length).to.eql(1);",
+                  "});",
+                  "",
+                  "pm.test('Has next_cursor', function () {",
+                  "    pm.expect(jsonData.next_cursor).to.not.be.null;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/events?start_time={{start_time}}&end_time={{end_time}}&limit=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "events"],
+              "query": [
+                { "key": "start_time", "value": "{{start_time}}" },
+                { "key": "end_time", "value": "{{end_time}}" },
+                { "key": "limit", "value": "1" }
+              ]
+            },
+            "description": "Smallest possible page. Should return 1 event and a cursor."
+          }
+        },
+        {
+          "name": "400 — Missing start_time",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/events?end_time={{end_time}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "events"],
+              "query": [
+                { "key": "end_time", "value": "{{end_time}}" }
+              ]
+            },
+            "description": "Missing required `start_time`. Expect 400."
+          }
+        },
+        {
+          "name": "400 — Missing end_time",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/events?start_time={{start_time}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "events"],
+              "query": [
+                { "key": "start_time", "value": "{{start_time}}" }
+              ]
+            },
+            "description": "Missing required `end_time`. Expect 400."
+          }
+        },
+        {
+          "name": "400 — Invalid cursor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/events?start_time={{start_time}}&end_time={{end_time}}&cursor=not-a-valid-cursor!!",
+              "host": ["{{base_url}}"],
+              "path": ["api", "events"],
+              "query": [
+                { "key": "start_time", "value": "{{start_time}}" },
+                { "key": "end_time", "value": "{{end_time}}" },
+                { "key": "cursor", "value": "not-a-valid-cursor!!" }
+              ]
+            },
+            "description": "Malformed cursor. Expect 400 with error message."
+          }
+        },
+        {
+          "name": "400 — Invalid direction",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/events?start_time={{start_time}}&end_time={{end_time}}&direction=sideways",
+              "host": ["{{base_url}}"],
+              "path": ["api", "events"],
+              "query": [
+                { "key": "start_time", "value": "{{start_time}}" },
+                { "key": "end_time", "value": "{{end_time}}" },
+                { "key": "direction", "value": "sideways" }
+              ]
+            },
+            "description": "Invalid sort direction. Expect 400."
+          }
+        }
+      ],
+      "description": "Boundary conditions and error handling. Each request includes a test script that verifies the expected status code."
+    }
+  ]
+}

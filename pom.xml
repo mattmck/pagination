@@ -67,4 +67,91 @@
 		</plugins>
 	</build>
 
+	<!--
+	  Client generation profiles: generate API clients from the OpenAPI spec.
+	  Usage: ./mvnw generate-sources -Pclient-java
+	         ./mvnw generate-sources -Pclient-python
+	         ./mvnw generate-sources -Pclient-typescript
+	  Output: target/generated-clients/<language>/
+	-->
+	<profiles>
+		<profile>
+			<id>client-java</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.openapitools</groupId>
+						<artifactId>openapi-generator-maven-plugin</artifactId>
+						<version>7.12.0</version>
+						<executions>
+							<execution>
+								<goals><goal>generate</goal></goals>
+								<configuration>
+									<inputSpec>${project.basedir}/openapi/events-api.json</inputSpec>
+									<generatorName>java</generatorName>
+									<output>${project.build.directory}/generated-clients/java</output>
+									<apiPackage>io.github.mattmck.events.client.api</apiPackage>
+									<modelPackage>io.github.mattmck.events.client.model</modelPackage>
+									<configOptions>
+										<library>native</library>
+										<useJakartaEe>true</useJakartaEe>
+									</configOptions>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<profile>
+			<id>client-python</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.openapitools</groupId>
+						<artifactId>openapi-generator-maven-plugin</artifactId>
+						<version>7.12.0</version>
+						<executions>
+							<execution>
+								<goals><goal>generate</goal></goals>
+								<configuration>
+									<inputSpec>${project.basedir}/openapi/events-api.json</inputSpec>
+									<generatorName>python</generatorName>
+									<output>${project.build.directory}/generated-clients/python</output>
+									<configOptions>
+										<packageName>events_client</packageName>
+									</configOptions>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<profile>
+			<id>client-typescript</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.openapitools</groupId>
+						<artifactId>openapi-generator-maven-plugin</artifactId>
+						<version>7.12.0</version>
+						<executions>
+							<execution>
+								<goals><goal>generate</goal></goals>
+								<configuration>
+									<inputSpec>${project.basedir}/openapi/events-api.json</inputSpec>
+									<generatorName>typescript-fetch</generatorName>
+									<output>${project.build.directory}/generated-clients/typescript</output>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
 </project>
