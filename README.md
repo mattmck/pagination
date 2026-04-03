@@ -108,6 +108,33 @@ These are not required. The core assignment is date range + cursor-based paginat
 
 ---
 
+## Build Time
+
+This project was completed in **3 hours 36 minutes** of active screen time across two sessions, tracked by [Timing](https://timingapp.com/) (macOS automatic time tracker). Development was **AI-assisted using [Claude Code](https://claude.com/claude-code)** — I drove the architecture, design decisions, and review process while Claude handled implementation, test writing, and boilerplate.
+
+| Session | Active Time | What got done |
+|---------|-------------|---------------|
+| **Apr 1** | 1h 19m | Planning, core implementation, 50 tests, README, CI |
+| **Apr 2** | 2h 17m | Sorting, filtering, OpenAPI, review fixes, Postman, client generation |
+
+### Where the time went
+
+| Activity | Time | % |
+|----------|------|---|
+| Claude (architecture, design decisions, prompting) | 2h 00m | 56% |
+| VS Code (code review, editing) | 45m | 21% |
+| Safari (GitHub PRs, CodeRabbit reviews, Swagger UI) | 27m | 12% |
+| GitHub (PR reviews, issue management) | 16m | 8% |
+| Terminal, Chrome, other | 7m | 3% |
+
+### What this demonstrates
+
+- **AI as a force multiplier, not a replacement.** Every design decision — hybrid data pattern, upsert dedup semantics, cursor format, binary search approach, interface design for future DB migration — was a deliberate human choice that I can explain and defend.
+- **Review-driven quality.** CodeRabbit and Copilot found real bugs (NPE on null direction, reference equality, O(n) scan documented as O(log n)). All were addressed, not dismissed.
+- **Knowing what to build matters more than typing speed.** The time savings came from clear requirements and fast iteration, not from skipping the thinking.
+
+---
+
 # Solution
 
 ## Setup & Run Instructions
