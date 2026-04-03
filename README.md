@@ -134,6 +134,11 @@ These are not required. The core assignment is date range + cursor-based paginat
 
 # Clean build artifacts
 ./mvnw clean
+
+# Generate API clients (Java, Python, TypeScript)
+./mvnw generate-sources -Pclient-java
+./mvnw generate-sources -Pclient-python
+./mvnw generate-sources -Pclient-typescript
 ```
 
 ### Docker
@@ -250,6 +255,26 @@ postman/
 | Edge Cases & Errors | 6 | Empty range, limit=1, missing params (400), invalid cursor (400), invalid direction (400) |
 
 Each request in the Pagination Walk and Edge Cases folders includes **test scripts** that validate status codes, array sizes, and cursor presence — so the Collection Runner gives you a green/red pass/fail summary.
+
+### Generated API Clients
+
+The OpenAPI spec (`openapi/events-api.json`) powers auto-generated clients in multiple languages via the [OpenAPI Generator](https://openapi-generator.tech/) Maven plugin. No extra installs required — just run a profile:
+
+```bash
+# Generate a Java client (java.net.http, Jakarta EE)
+./mvnw generate-sources -Pclient-java
+# → target/generated-clients/java/
+
+# Generate a Python client
+./mvnw generate-sources -Pclient-python
+# → target/generated-clients/python/
+
+# Generate a TypeScript client (fetch-based)
+./mvnw generate-sources -Pclient-typescript
+# → target/generated-clients/typescript/
+```
+
+Each generated client includes models (`Event`, `EventPageResponse`), an API class with the `getEvents` method fully typed, and a README with usage instructions. The spec file is committed to the repo so clients can be generated without running the server.
 
 ### Interactive API Docs
 
