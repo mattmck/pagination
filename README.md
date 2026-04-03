@@ -1,110 +1,20 @@
-# Take-Home: Events API with Cursor-Based Pagination
+# Events API — Cursor-Based Pagination
 
-**Role:** Backend Java Developer
-**Focus:** Pagination correctness, API design
-**Tech:** Your choice of framework and persistence (in-memory from CSV is fine). **Spring is fine.** **Do not use Guava.** You make all other technical decisions.
+**Take-home assessment** for a Backend Java Developer role. A single REST endpoint (`GET /api/events`) returning events for a date range with correct cursor-based pagination — fixing a known bug where the previous engineer's approach caused duplicate events across pages and inflated totals.
 
-For more detail on what we expect (API type, tests, documentation), see [Expectations](EXPECTATIONS.md).
+## At a Glance
 
----
-
-## The Setup
-
-You are taking over an **Events API**. Your task is to build a **single remote endpoint** (e.g. REST over HTTP) that returns events for a **date range** using **cursor-based pagination**. The deliverable is a **callable HTTP API**, not an in-process Java interface—clients should be able to hit the endpoint with a tool like `curl` or a REST client.
-
-- **Input:** Start date, end date (for the range), optional `limit`, optional `cursor`.
-- **Output:** A page of events plus a `next_cursor` when more results exist. Results are ordered by `start_time` (ascending) with a stable tie-breaker (e.g. `id` or `row_index`).
-- You may use any framework (Spring, etc.) or database. Loading the provided CSV into memory is acceptable.
-
-The repo includes `sample_data.csv` — treat it as the raw "database" rows. Ingest it however you like (e.g., at startup or on first request).
-
----
-
-## The Scenario (The Bug)
-
-The previous engineer implemented pagination with the following logic:
-
-1. Fetch `limit + 1` rows from the data store (ordered by `start_time`, then by a tie-breaker such as `id` or `row_index`).
-2. **De-duplicate by `id` in memory** (e.g., keep first occurrence per `id`).
-3. Take the **first `limit` items** from the de-duplicated list.
-4. Set **`next_cursor`** from the **last item** in this de-duplicated return array (e.g., encode `start_time` and `id` of that last item).
-
-The intent was to avoid duplicates in the API response while still using a "fetch one extra row" pattern to detect if there is a next page.
-
----
-
-## The Symptoms
-
-Clients are reporting:
-
-- **Overlapping events** across pages: the same logical event (same `id`) sometimes appears on more than one page.
-- **Higher total event counts** when paginating through all pages than when fetching all records in a single request (e.g., with a very large limit or no pagination).
-
----
-
-## The Assignment
-
-### 1. Implementation
-
-Build the API endpoint from scratch with **correct cursor derivation** so that:
-
-- Each logical event (by `id`) appears **at most once** across all pages.
-- The **total number of distinct events** returned when paginating through all pages equals the total number of distinct events in the date range (no inflation, no missing IDs).
-- Cursor semantics are stable and unambiguous (e.g., "start after this position" or "start at this position" clearly defined).
-
-You own the choice of cursor format (opaque string, base64-encoded tuple, etc.) and the exact request/response shape.
-
----
-
-### 2. Testing
-
-Write **unit and/or integration tests** that prove pagination is correct. Unit tests (e.g. testing your pagination/cursor logic in isolation) and integration tests (e.g. calling the HTTP endpoint) are both acceptable—use whatever mix best demonstrates correctness. The test suite must be runnable without manual steps (e.g. via your build tool). At minimum, your tests must verify:
-
-- **Totals match:** The sum of distinct event IDs over all paginated pages equals the total distinct event count for the same date range when fetched without pagination (or with a single "get all" call).
-- **No duplicates:** No event `id` appears more than once across all pages for a given date range and limit.
-- **No missing IDs:** Every distinct event in the date range appears in exactly one page (no events skipped).
-
-Feel free to add more tests (e.g., empty range, single page, cursor stability, boundary times).
-
----
-
-### 3. API Contract
-
-Document how clients should consume this API:
-
-- Request parameters (e.g., `start_time`, `end_time`, `limit`, `cursor`).
-- Response shape (e.g., `events`, `next_cursor`, and when `next_cursor` is absent or null).
-- How to use `next_cursor` to request the next page and how to know when pagination is complete.
-
-Put this in your README or a dedicated API doc so that an integration engineer could implement a client without reading your source code.
-
----
-
-## Extras (optional)
-
-If you have time and want to go further:
-
-- **Sorting** — Support a configurable sort order (e.g. `order_by=start_time` with `asc` / `desc`). The cursor must be derived from the same ordering used for the query; document how sort parameters affect the cursor.
-- **Filters** — Support at least one simple filter (e.g. by `id` prefix, or `payload` contains a substring). Ensure paginated totals and "get all" totals stay consistent when the filter is applied.
-
-These are not required. The core assignment is date range + cursor-based pagination with correct cursor logic.
-
----
-
-## Deliverables Checklist
-
-- [x] **Working API** — One **HTTP** endpoint: events for date range with cursor-based pagination and correct cursor logic (callable via REST/client).
-- [x] **Tests** — Unit and/or integration tests, runnable via your build tool, that prove paginated totals match non-paginated totals with no missing or duplicate IDs.
-- [x] **API contract** — Clear docs for request/response and cursor usage (see below).
-- [x] **Javadoc** — Proper Javadoc for all public classes and public methods.
-- [x] **Setup/run instructions** — How to install dependencies, load data, run the server, and run tests (see below).
-
----
-
-## Data: `sample_data.csv`
-
-- **Columns:** `row_index`, `start_time` (Unix timestamp), `id`, `payload`.
-- **Note:** The dataset intentionally contains **duplicate rows** (same `start_time` and `id`, different `row_index`) to exercise de-duplication and cursor logic. Your implementation must handle these correctly so that each logical event appears once and cursor boundaries are unambiguous.
+| | Deliverable | Status |
+|---|---|---|
+| 1 | Correct cursor-based pagination | ✅ Deduplicate at startup, paginate over clean data |
+| 2 | 50 automated tests | ✅ No duplicates, no missing IDs, totals match |
+| 3 | API contract with curl examples | ✅ 6 parameters, full pagination walkthrough |
+| 4 | Sorting & filtering (extras) | ✅ Asc/desc, case-insensitive payload filter |
+| 5 | Postman collection | ✅ 16 requests with test scripts |
+| 6 | API client generation | ✅ Java, Python, TypeScript via Maven profiles |
+| 7 | OpenAPI / Swagger UI | ✅ Interactive docs at `/swagger-ui.html` |
+| 8 | Javadoc | ✅ All public classes and methods |
+| 9 | GitHub Actions CI | ✅ `./mvnw verify` on every push and PR |
 
 ---
 
@@ -112,20 +22,54 @@ These are not required. The core assignment is date range + cursor-based paginat
 
 This project was completed in **3 hours 36 minutes** of active screen time across two sessions, tracked by [Timing](https://timingapp.com/) (macOS automatic time tracker). Development was **AI-assisted using [Claude Code](https://claude.com/claude-code)** — I drove the architecture, design decisions, and review process while Claude handled implementation, test writing, and boilerplate.
 
-| Session | Active Time | What got done |
-|---------|-------------|---------------|
-| **Apr 1** | 1h 19m | Planning, core implementation, 50 tests, README, CI |
-| **Apr 2** | 2h 17m | Sorting, filtering, OpenAPI, review fixes, Postman, client generation |
+```mermaid
+pie title Active Time by Tool (3h 36m total)
+    "Claude — design & prompting" : 120
+    "VS Code — code review" : 45
+    "Safari — GitHub & Swagger" : 27
+    "GitHub — PR reviews" : 16
+    "Terminal & other" : 7
+```
 
-### Where the time went
-
-| Activity | Time | % |
-|----------|------|---|
-| Claude (architecture, design decisions, prompting) | 2h 00m | 56% |
-| VS Code (code review, editing) | 45m | 21% |
-| Safari (GitHub PRs, CodeRabbit reviews, Swagger UI) | 27m | 12% |
-| GitHub (PR reviews, issue management) | 16m | 8% |
-| Terminal, Chrome, other | 7m | 3% |
+```mermaid
+timeline
+    title Project Timeline
+    section Apr 1 — Session 1 (1h 19m)
+        Analyze & Plan
+            : Read assignment & sample data
+            : Identified the pagination bug (dedup after fetch)
+            : Chose tech stack — Spring Boot 3.4, Java 21, Jackson CSV
+            : Designed hybrid data pattern & upsert dedup semantics
+            : Designed cursor format — Base64 of startTime|id tuple
+        Implement Core
+            : CSV loading with Jackson CsvMapper
+            : Dedup via Collectors.toMap (highest rowIndex wins)
+            : EventStore interface for future DB swap
+            : InMemoryEventStore with binary search (mirrors B-tree index)
+            : CursorCodec — URL-safe Base64 encode/decode
+            : EventController with limit+1 fetch pattern
+        Test & Ship
+            : 8 unit tests for CursorCodec
+            : 14 unit tests for InMemoryEventStore
+            : 14 integration tests via WebTestClient
+            : README with API contract & architecture docs
+            : GitHub Actions CI workflow
+    section Apr 2 — Session 2 (2h 17m)
+        Extras
+            : Configurable sort order (asc/desc)
+            : Pre-computed reversed list for descending queries
+            : Case-insensitive payload substring filter
+            : OpenAPI via springdoc + Swagger UI
+            : Javadoc on all public classes and methods
+        Code Review
+            : CodeRabbit found NPE, reference equality, O(n) scan
+            : Copilot found locale issue, Javadoc inaccuracy, interface docs
+            : Fixed all findings — 10 review comments resolved
+        Developer Experience
+            : Postman collection — 16 requests with test scripts
+            : OpenAPI client generation — Java, Python, TypeScript
+            : Static OpenAPI spec with corrected snake_case field names
+```
 
 ### What this demonstrates
 
@@ -134,8 +78,6 @@ This project was completed in **3 hours 36 minutes** of active screen time acros
 - **Knowing what to build matters more than typing speed.** The time savings came from clear requirements and fast iteration, not from skipping the thinking.
 
 ---
-
-# Solution
 
 ## Setup & Run Instructions
 
@@ -470,3 +412,88 @@ Each milestone gets its own feature branch off `main`, with one commit per logic
 ### CI
 
 GitHub Actions runs `./mvnw verify` on every push and PR. The workflow tests against Java 21 LTS. PRs must pass CI before merging.
+
+---
+
+---
+
+<details>
+<summary><strong>Original Assignment</strong> (click to expand)</summary>
+
+## The Setup
+
+You are taking over an **Events API**. Your task is to build a **single remote endpoint** (e.g. REST over HTTP) that returns events for a **date range** using **cursor-based pagination**. The deliverable is a **callable HTTP API**, not an in-process Java interface—clients should be able to hit the endpoint with a tool like `curl` or a REST client.
+
+- **Input:** Start date, end date (for the range), optional `limit`, optional `cursor`.
+- **Output:** A page of events plus a `next_cursor` when more results exist. Results are ordered by `start_time` (ascending) with a stable tie-breaker (e.g. `id` or `row_index`).
+- You may use any framework (Spring, etc.) or database. Loading the provided CSV into memory is acceptable.
+
+The repo includes `sample_data.csv` — treat it as the raw "database" rows. Ingest it however you like (e.g., at startup or on first request).
+
+## The Scenario (The Bug)
+
+The previous engineer implemented pagination with the following logic:
+
+1. Fetch `limit + 1` rows from the data store (ordered by `start_time`, then by a tie-breaker such as `id` or `row_index`).
+2. **De-duplicate by `id` in memory** (e.g., keep first occurrence per `id`).
+3. Take the **first `limit` items** from the de-duplicated list.
+4. Set **`next_cursor`** from the **last item** in this de-duplicated return array (e.g., encode `start_time` and `id` of that last item).
+
+The intent was to avoid duplicates in the API response while still using a "fetch one extra row" pattern to detect if there is a next page.
+
+## The Symptoms
+
+Clients are reporting:
+
+- **Overlapping events** across pages: the same logical event (same `id`) sometimes appears on more than one page.
+- **Higher total event counts** when paginating through all pages than when fetching all records in a single request (e.g., with a very large limit or no pagination).
+
+## The Assignment
+
+### 1. Implementation
+
+Build the API endpoint from scratch with **correct cursor derivation** so that:
+
+- Each logical event (by `id`) appears **at most once** across all pages.
+- The **total number of distinct events** returned when paginating through all pages equals the total number of distinct events in the date range (no inflation, no missing IDs).
+- Cursor semantics are stable and unambiguous (e.g., "start after this position" or "start at this position" clearly defined).
+
+You own the choice of cursor format (opaque string, base64-encoded tuple, etc.) and the exact request/response shape.
+
+### 2. Testing
+
+Write **unit and/or integration tests** that prove pagination is correct. Unit tests (e.g. testing your pagination/cursor logic in isolation) and integration tests (e.g. calling the HTTP endpoint) are both acceptable—use whatever mix best demonstrates correctness. The test suite must be runnable without manual steps (e.g. via your build tool). At minimum, your tests must verify:
+
+- **Totals match:** The sum of distinct event IDs over all paginated pages equals the total distinct event count for the same date range when fetched without pagination (or with a single "get all" call).
+- **No duplicates:** No event `id` appears more than once across all pages for a given date range and limit.
+- **No missing IDs:** Every distinct event in the date range appears in exactly one page (no events skipped).
+
+Feel free to add more tests (e.g., empty range, single page, cursor stability, boundary times).
+
+### 3. API Contract
+
+Document how clients should consume this API:
+
+- Request parameters (e.g., `start_time`, `end_time`, `limit`, `cursor`).
+- Response shape (e.g., `events`, `next_cursor`, and when `next_cursor` is absent or null).
+- How to use `next_cursor` to request the next page and how to know when pagination is complete.
+
+Put this in your README or a dedicated API doc so that an integration engineer could implement a client without reading your source code.
+
+## Extras (optional)
+
+If you have time and want to go further:
+
+- **Sorting** — Support a configurable sort order (e.g. `order_by=start_time` with `asc` / `desc`). The cursor must be derived from the same ordering used for the query; document how sort parameters affect the cursor.
+- **Filters** — Support at least one simple filter (e.g. by `id` prefix, or `payload` contains a substring). Ensure paginated totals and "get all" totals stay consistent when the filter is applied.
+
+These are not required. The core assignment is date range + cursor-based pagination with correct cursor logic.
+
+## Data: `sample_data.csv`
+
+- **Columns:** `row_index`, `start_time` (Unix timestamp), `id`, `payload`.
+- **Note:** The dataset intentionally contains **duplicate rows** (same `start_time` and `id`, different `row_index`) to exercise de-duplication and cursor logic. Your implementation must handle these correctly so that each logical event appears once and cursor boundaries are unambiguous.
+
+For more detail on what we expect (API type, tests, documentation), see [Expectations](EXPECTATIONS.md).
+
+</details>
