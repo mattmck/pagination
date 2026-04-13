@@ -16,6 +16,7 @@
 | 8 | Javadoc | ✅ All public classes and methods |
 | 9 | GitHub Actions CI | ✅ `./mvnw verify` on every push and PR |
 
+
 ---
 
 ## Build Time
