@@ -16,6 +16,8 @@
 | 8 | Javadoc | ✅ All public classes and methods |
 | 9 | GitHub Actions CI | ✅ `./mvnw verify` on every push and PR |
 
+A [retrospective](RETROSPECTIVE.md) is included — what I concentrated on, why, and what I'd do differently.
+
 ---
 
 ## Build Time
